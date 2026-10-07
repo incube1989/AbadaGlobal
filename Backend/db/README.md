@@ -45,12 +45,33 @@ Seeds (reference/demo data) live in [`seeds/`](seeds/). They are written as
 plain `.sql` files (or TypeScript scripts) and executed on demand — they are
 never applied automatically.
 
+## Data dictionary
+
+Information about the database's entities and tables lives in two places:
+
+1. **In the database itself** — every table and column carries a `COMMENT`
+   written next to its DDL in [`migrations/`](migrations/). Comments are
+   versioned by migrations, travel with dumps, and are queryable at any time.
+2. **In this folder** — [`SCHEMA.md`](SCHEMA.md) is the human-readable mirror:
+   ER diagram and per-table reference. Keep it in sync with the migrations.
+
+Query the dictionary straight from SQL:
+
+```sql
+SELECT * FROM v_data_dictionary ORDER BY "table", "column";
+SELECT * FROM v_data_dictionary WHERE "table" = 'app_meta';
+```
+
+The `v_data_dictionary` view is created by
+[`migrations/002_data_dictionary.sql`](migrations/002_data_dictionary.sql).
+
 ## Layout
 
 ```
 db/
 ├── migrate.ts        # migration runner
-├── migrations/       # numbered SQL migrations
+├── SCHEMA.md         # human-readable schema reference (ERD + tables)
+├── migrations/       # numbered SQL migrations (DDL + COMMENT statements)
 └── seeds/            # optional seed data
 ```
 

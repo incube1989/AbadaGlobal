@@ -20,11 +20,16 @@ The PostgreSQL persistence layer for AbadaGlobal.
 - Seeds: [`../../../Backend/db/seeds/`](../../../Backend/db/seeds/) (manual, never automatic)
 - Connection: `DATABASE_URL` env var, pool in
   [`../../../Backend/src/db/pool.ts`](../../../Backend/src/db/pool.ts)
+- Data dictionary: SQL `COMMENT` statements in migrations + the
+  `v_data_dictionary` view; human-readable mirror in
+  [`../../../Backend/db/SCHEMA.md`](../../../Backend/db/SCHEMA.md)
 
 ## Current schema
 
 - `app_meta` — placeholder key/value table (demonstrates the pipeline)
 - `schema_migrations` — migration bookkeeping (managed by the runner)
+- `v_data_dictionary` — queryable data dictionary view (tables, columns,
+  types, comments)
 
 ## Relationships
 
