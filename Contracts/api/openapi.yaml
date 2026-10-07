@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info:
+  title: AbadaGlobal API
+  version: 0.1.0
+  description: >-
+    API contract for the AbadaGlobal site. This file is the single source of
+    truth for the HTTP surface shared between the frontend and the backend.
+    Paths are relative to the servers listed below.
+servers:
+  - url: http://localhost:3000/api
+    description: Local development (backend on port 3000)
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness check
+      description: Returns ok when the API process is up and responding.
+      responses:
+        "200":
+          description: The API is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, uptime, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        uptime:
+          type: number
+          description: Seconds since the process started
+        timestamp:
+          type: string
+          format: date-time
+          description: Server time of the response
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
