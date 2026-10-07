@@ -12,6 +12,8 @@ pattern** (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 | `Backend/` | Code — Node + Express + TS API, PostgreSQL migrations | Humans + agents editing code |
 | `Contracts/` | API contracts — OpenAPI spec | Humans + agents; treated as source of truth |
 | `Design/raw/` | Raw sources — immutable documents | Humans curate; agents read, never modify |
+| `Design/Increment/` | Incoming documents awaiting review and approved merge | Humans drop files; agents read and propose |
+| `Design/Archive/` | Documents already merged into the wiki | Agents move files here after approved merge |
 | `Design/wiki/` | The wiki — interlinked markdown pages | Agents write and maintain; humans read |
 | `CLAUDE.md` | The schema — this file | Co-evolved by humans and agents |
 
@@ -100,6 +102,24 @@ Periodically, the human may ask for a health check of the wiki. Look for:
 - missing cross-references.
 
 Suggest new questions to investigate and new sources to look for.
+
+### Incremental merge (Design/Increment)
+
+New information arrives in `Design/Increment/`. Processing it is a gated
+workflow — **never merge without explicit approval**:
+
+1. **Read** every new file in `Design/Increment/`.
+2. **Raise issues first.** Compare the material against the current wiki and
+   report conflicts, open questions, and inaccuracies. Wait for the human's
+   answers; do not modify the wiki yet.
+3. After issues are resolved, **ask for explicit approval to merge**.
+4. Only on approval: perform the merge — write/update wiki pages, refresh
+   `Design/wiki/index.md`, append to `Design/wiki/log.md` — then **move the
+   source files from `Design/Increment/` to `Design/Archive/`**.
+5. Never leave merged sources in `Design/Increment/`; never merge without
+   approval.
+
+The merge itself follows the same page/index/log conventions as **Ingest**.
 
 ## Engineering conventions
 

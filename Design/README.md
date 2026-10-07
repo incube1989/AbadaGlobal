@@ -7,6 +7,8 @@ LLM-maintained wiki** (the *LLM wiki* pattern, see
 ```
 Design/
 ├── raw/          # RAW SOURCES — immutable documents (briefs, transcripts, references)
+├── Increment/    # INCOMING — new info awaiting review + approved merge
+├── Archive/      # MERGED — documents absorbed into the wiki
 └── wiki/         # THE WIKI — interlinked markdown pages maintained by agents
     ├── index.md  # content-oriented catalog of every page
     ├── log.md    # append-only chronological record of wiki activity
@@ -28,6 +30,18 @@ Three operations agents perform (full rules in [`../CLAUDE.md`](../CLAUDE.md)):
 2. **Query** — answers are synthesized from the wiki with citations; valuable
    answers get filed back as new pages.
 3. **Lint** — periodic health check: contradictions, stale claims, orphan pages.
+
+## New information flow (Increment → wiki → Archive)
+
+1. Drop new documents into [`Increment/`](Increment/).
+2. Ask the agent to process them: it reads every file, then raises conflicts,
+   open questions, and inaccuracies against the current wiki — and waits for
+   your answers before changing anything.
+3. Once issues are resolved, the agent asks for **explicit approval to merge**.
+   It never merges without approval.
+4. After approval, the information is merged into the wiki (pages, index, log),
+   and the source files are moved from [`Increment/`](Increment/) to
+   [`Archive/`](Archive/).
 
 ## Browsing the wiki
 
