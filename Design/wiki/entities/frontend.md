@@ -3,7 +3,7 @@ title: Frontend
 tags: [entity, frontend, site]
 created: 2026-10-07
 updated: 2026-10-07
-sources: 0
+sources: 6
 ---
 
 # Frontend
@@ -19,12 +19,28 @@ Vite 7, TypeScript, and React Router.
   `http://localhost:3000` during development
 - Tests: Vitest + Testing Library
 
+## Pages
+
+- Main page — school information and upcoming events
+- Calendar — see [[concepts/calendar-spec|Calendar Spec]]
+- Event page — full event information
+- Login — email + password; see [[concepts/mvp-scope|MVP Scope]]
+- Profile, Settings, Database (video) — under construction page in the MVP
+- Restricted and under-construction pages with the fixed copy:
+  [[sources/restricted-page]], [[sources/under-construction]]
+
+## Layout
+
+- Navigation bar on all pages: left panel on desktop, burger menu on mobile
+  ([[sources/navigation-panel]])
+- All three languages in the MVP (Russian first); desktop and mobile support
+
 ## Relationships
 
 - Consumes the API defined in [[contracts|Contracts]] — see
   [`../../../Contracts/api/openapi.yaml`](../../../Contracts/api/openapi.yaml)
-- Calls [[backend|Backend]] over HTTP
+- Calls [[entities/backend|Backend]] over HTTP
 
 ## Open questions
 
-- Site content and pages to be defined.
+- Detailed page layouts to be specified (team follow-up task)

@@ -1,0 +1,17 @@
+For mvp we do only
+
+- calendar page
+- login page
+- navigation panel
+- under construction page
+- restricted page (for unlogged users)
+- language switcher 
+- simple event page for each event
+
+
+Event data - taken from hardcoded list
+Users:
+- admin@gmail.com, password: 1234
+- user@gmail.com, password: 4321
+
+Hosting both backend and frontend on local machine

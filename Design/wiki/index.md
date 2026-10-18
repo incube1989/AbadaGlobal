@@ -22,12 +22,19 @@ relevant pages.
 
 ## Concepts
 
-*(No pages yet. Decisions, ADRs, comparisons, and syntheses will be filed here.)*
+- [[concepts/mvp-scope|MVP Scope]] — what ships in the MVP and key decisions
+- [[concepts/calendar-spec|Calendar Spec]] — calendar views, filters, event panels
+- [[concepts/domain-model|Domain Model]] — users and events
 
 ## Sources
 
-*(No sources ingested yet. One summary page per ingested document lives here.)*
+- [[sources/main|Main increment doc]] — vision, main features, MVP scope
+- [[sources/calendar|Calendar increment doc]] — calendar requirements
+- [[sources/navigation-panel|Navigation panel increment doc]] — nav layout and buttons
+- [[sources/restricted-page|Restricted page increment doc]] — access-denied copy
+- [[sources/under-construction|Under construction increment doc]] — placeholder copy
+- [[sources/hardcoded-events|Hardcoded events data]] — normalized 2026–2027 seed events
 
 ---
 
-*Last updated: 2026-10-07 (repo scaffold).*
+*Last updated: 2026-10-07 (design increment batch merged).*

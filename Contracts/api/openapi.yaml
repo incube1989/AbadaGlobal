@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AbadaGlobal API
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     API contract for the AbadaGlobal site. This file is the single source of
     truth for the HTTP surface shared between the frontend and the backend.
@@ -22,7 +22,128 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+  /auth/login:
+    post:
+      operationId: login
+      summary: Log in with email and password
+      description: >-
+        Validates the hardcoded MVP users and returns an opaque bearer token
+        that expires in 7 days together with the public user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login succeeded — token and public user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      operationId: getMe
+      summary: Current user from the bearer token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /events:
+    get:
+      operationId: listEvents
+      summary: List calendar events
+      description: >-
+        Returns all events ordered by start date. The optional scope and type
+        query parameters filter by exact match and can be combined.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/EventScope"
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/EventType"
+      responses:
+        "200":
+          description: Events sorted by start date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /events/{id}:
+    get:
+      operationId: getEvent
+      summary: Single event by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The requested event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Token issued by POST /auth/login; expires after 7 days.
+  responses:
+    BadRequest:
+      description: Invalid request body or query parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: >-
+        Missing, invalid, or expired token; or bad credentials on /auth/login
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthResponse:
       type: object
@@ -38,6 +159,65 @@ components:
           type: string
           format: date-time
           description: Server time of the response
+    User:
+      type: object
+      required: [id, email, name, role]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, moderator, simple user]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: Opaque bearer token, expires after 7 days
+        user:
+          $ref: "#/components/schemas/User"
+    Event:
+      type: object
+      required: [id, name, startDate, endDate, place, type, scope]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        place:
+          type: string
+        type:
+          $ref: "#/components/schemas/EventType"
+        scope:
+          $ref: "#/components/schemas/EventScope"
+    EventType:
+      type: string
+      enum: [competition, festival, batizado, camp, coach only]
+    EventScope:
+      type: string
+      enum: [world, Russia, region, local]
     ErrorResponse:
       type: object
       required: [error]

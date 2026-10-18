@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Bind IPv4 explicitly: on some Windows setups Vite otherwise listens
+    // only on ::1 and browsers cannot reach http://localhost:5173.
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       // During development, forward API calls to the backend server.

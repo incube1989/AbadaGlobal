@@ -1,29 +1,31 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { screen } from '@testing-library/react'
 import App from '../App'
+import { renderWithProviders } from './testUtils'
 
-describe('App', () => {
-  beforeAll(() => {
-    // Mock the health-check fetch used by the Home page.
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ status: 'ok', uptime: 1, timestamp: '2026-10-07T00:00:00.000Z' }),
-    }) as unknown as typeof fetch
+vi.mock('../api/client', () => ({
+  ApiError: class extends Error {},
+  fetchHealth: vi.fn(),
+  fetchMe: vi.fn(),
+  login: vi.fn(),
+  fetchEvents: vi.fn(),
+  fetchEvent: vi.fn(),
+}))
+
+describe('App routing', () => {
+  beforeEach(() => {
+    localStorage.clear()
   })
 
-  afterAll(() => {
-    vi.restoreAllMocks()
+  it('redirects an unauthenticated visitor from / to the login page', async () => {
+    renderWithProviders(<App />, { initialEntries: ['/'] })
+    expect(await screen.findByRole('heading', { name: 'Вход' })).toBeInTheDocument()
   })
 
-  it('renders the home page heading', async () => {
-    render(
-      <MemoryRouter>
-        <App />
-      </MemoryRouter>,
-    )
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('AbadaGlobal')
-    // Flush the health-check effect and verify the API status is shown.
-    expect(await screen.findByText('ok')).toBeInTheDocument()
+  it('shows the restricted page instead of protected content when logged out', async () => {
+    renderWithProviders(<App />, { initialEntries: ['/calendar'] })
+    expect(
+      await screen.findByText(/у вас нет прав на просмотр этой страницы/),
+    ).toBeInTheDocument()
   })
 })

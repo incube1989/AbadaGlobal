@@ -3,7 +3,7 @@ title: Database
 tags: [entity, database, postgresql]
 created: 2026-10-07
 updated: 2026-10-07
-sources: 0
+sources: 6
 ---
 
 # Database
@@ -31,10 +31,18 @@ The PostgreSQL persistence layer for AbadaGlobal.
 - `v_data_dictionary` — queryable data dictionary view (tables, columns,
   types, comments)
 
+## Planned tables (first feature)
+
+- `users` — email, password, name, role (admin | moderator | simple user)
+- `events` — name, start/end dates, place, type, scope
+- Seed: the hardcoded event set from [[sources/hardcoded-events]]
+
+Field semantics: [[concepts/domain-model|Domain Model]].
+
 ## Relationships
 
-- Used by [[backend|Backend]]
+- Used by [[entities/backend|Backend]]
 
 ## Open questions
 
-- Real domain tables to be introduced with the first feature.
+- None blocking; tables introduced with the auth/calendar feature
