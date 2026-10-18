@@ -219,6 +219,27 @@ export default function Calendar() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [filtered])
 
+  /** Every month from the earliest event to the latest event, inclusive. */
+  const monthRange = useMemo(() => {
+    if (filtered.length === 0) return []
+    const times = filtered.flatMap((e) => [
+      parseDate(e.startDate).getTime(),
+      parseDate(e.endDate).getTime(),
+    ])
+    const min = new Date(Math.min(...times))
+    const max = new Date(Math.max(...times))
+    const keys: string[] = []
+    const cursor = new Date(min.getFullYear(), min.getMonth(), 1)
+    const last = new Date(max.getFullYear(), max.getMonth(), 1)
+    while (cursor <= last) {
+      keys.push(monthKey(cursor))
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    return keys
+  }, [filtered])
+
+  const monthMap = useMemo(() => new Map(monthGroups), [monthGroups])
+
   const weeksByMonth = useMemo(() => {
     const map = new Map<string, { weekStart: Date; events: Event[] }[]>()
     for (const e of filtered) {
@@ -238,6 +259,8 @@ export default function Calendar() {
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [filtered])
+
+  const weeksMap = useMemo(() => new Map(weeksByMonth), [weeksByMonth])
 
   const toggleScope = (scope: EventScope) => {
     setScopes((prev) =>
@@ -323,37 +346,51 @@ export default function Calendar() {
         <p className="calendar-empty">{t('calendar.empty')}</p>
       ) : view === 'months' ? (
         <div className="calendar-months">
-          {monthGroups.map(([key, monthEvents]) => (
-            <section className="month-block" key={key}>
-              <h2>{monthLabel(key, lang)}</h2>
-              {monthEvents.map((e) => (
-                <EventPanel key={e.id} event={e} onClick={() => setSelected(e)} />
-              ))}
-            </section>
-          ))}
+          {monthRange.map((key) => {
+            const monthEvents = monthMap.get(key) ?? []
+            return (
+              <section className="month-block" key={key}>
+                <h2>{monthLabel(key, lang)}</h2>
+                {monthEvents.length === 0 ? (
+                  <p className="calendar-empty">{t('calendar.empty')}</p>
+                ) : (
+                  monthEvents.map((e) => (
+                    <EventPanel key={e.id} event={e} onClick={() => setSelected(e)} />
+                  ))
+                )}
+              </section>
+            )
+          })}
         </div>
       ) : view === 'weeks' ? (
         <div className="calendar-weeks">
-          {weeksByMonth.map(([key, weeks]) => (
-            <section className="month-block" key={key}>
-              <h2>{monthLabel(key, lang)}</h2>
-              {weeks.map(({ weekStart, events: weekEvents }) => (
-                <div className="week-block" key={toISODate(weekStart)}>
-                  <h3>{weekRangeLabel(weekStart, lang)}</h3>
-                  {weekEvents.map((e) => (
-                    <EventPanel key={e.id} event={e} onClick={() => setSelected(e)} />
-                  ))}
-                </div>
-              ))}
-            </section>
-          ))}
+          {monthRange.map((key) => {
+            const weeks = weeksMap.get(key) ?? []
+            return (
+              <section className="month-block" key={key}>
+                <h2>{monthLabel(key, lang)}</h2>
+                {weeks.length === 0 ? (
+                  <p className="calendar-empty">{t('calendar.empty')}</p>
+                ) : (
+                  weeks.map(({ weekStart, events: weekEvents }) => (
+                    <div className="week-block" key={toISODate(weekStart)}>
+                      <h3>{weekRangeLabel(weekStart, lang)}</h3>
+                      {weekEvents.map((e) => (
+                        <EventPanel key={e.id} event={e} onClick={() => setSelected(e)} />
+                      ))}
+                    </div>
+                  ))
+                )}
+              </section>
+            )
+          })}
         </div>
       ) : (
         <div className="calendar-days">
-          {monthGroups.map(([key, monthEvents]) => (
+          {monthRange.map((key) => (
             <section className="month-block" key={key}>
               <h2>{monthLabel(key, lang)}</h2>
-              <DayGrid month={key} events={monthEvents} onSelect={setSelected} />
+              <DayGrid month={key} events={monthMap.get(key) ?? []} onSelect={setSelected} />
             </section>
           ))}
         </div>

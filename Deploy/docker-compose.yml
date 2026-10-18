@@ -1,0 +1,63 @@
+# AbadaGlobal production stack on the Yandex Cloud VM.
+#  db    — PostgreSQL 16 (data in named volume `pgdata`)
+#  app   — Express API + built SPA (Topology A, served from ./public)
+#  caddy — reverse proxy :80/:443 -> app:3000
+#
+# Secrets come from Deploy/.env (interpolated by docker compose).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${APP_PORT}
+      # Internal docker network: no SSL needed between containers.
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      AUTH_SECRET: ${AUTH_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

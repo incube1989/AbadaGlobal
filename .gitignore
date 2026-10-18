@@ -28,3 +28,14 @@ coverage/
 
 # Vite
 *.local
+
+
+#Deploy
+connections.env
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.tar.gz

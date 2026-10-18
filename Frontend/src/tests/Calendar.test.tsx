@@ -129,4 +129,18 @@ describe('Calendar page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дни' }))
     expect(container.querySelector('.day-grid')).not.toBeNull()
   })
+
+  it('shows months without events in the days view', async () => {
+    const { container } = renderWithProviders(<App />, {
+      initialEntries: ['/calendar'],
+      token: 'valid-token',
+    })
+
+    await screen.findAllByText('Zumbimba')
+
+    // Every month from the first to the last event is rendered as a block,
+    // including empty months (Dec 2026 -> Nov 2027 = 12 month blocks).
+    expect(container.querySelectorAll('.month-block')).toHaveLength(12)
+    expect(container.querySelectorAll('.day-grid')).toHaveLength(12)
+  })
 })

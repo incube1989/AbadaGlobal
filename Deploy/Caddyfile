@@ -1,0 +1,10 @@
+# AbadaGlobal reverse proxy.
+# HTTP on :80 for now. When a domain is added, swap the block for:
+#   https://your-domain.example {
+#       encode gzip
+#       reverse_proxy app:3000
+#   }
+:80 {
+	encode gzip
+	reverse_proxy app:3000
+}
