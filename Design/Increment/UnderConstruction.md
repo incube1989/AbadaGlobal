@@ -1,1 +1,0 @@
-Some pages that are not yet implemented should have text in center "Sorry, page is yet under construction. Contact Admin for details"

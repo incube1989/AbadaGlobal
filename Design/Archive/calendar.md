@@ -35,4 +35,4 @@ When visualizing event panel on calendar it contains:
 
 
 If user click on event panel, he get pop-up window with short information and link to event page.
-Pressing on link to event page he is redirected to full event page will all information about event.
+Pressing on link to event page he is redirected to full event page will all information about event. 

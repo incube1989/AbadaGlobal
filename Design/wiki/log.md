@@ -31,3 +31,16 @@ grep "^## \[" log.md | tail -5
   in Rio de Janeiro.
 - Archived merged files to `Design/Archive/` (originals still present in
   `Design/Increment/` pending filesystem removal).
+
+## [2026-10-18] cleanup | Increment folder emptied — no new content to merge
+
+- Reviewed all files in `Design/Increment/` against the wiki and `Design/Archive/`.
+- Confirmed the wiki was already up to date: all six documents
+  (`calendar.md`, `hardcodedEvents.md`, `Main.md`, `navigationpanel.md`,
+  `RestrictedPage.md`, `UnderConstruction.md`) were byte-identical to their
+  archived, already-merged counterparts — no wiki page changes required.
+- `UmderConstruction.md` (typo-named duplicate of `UnderConstruction.md`, same
+  content) was archived as a record; it adds no new information and was not
+  given a wiki page.
+- Moved all seven files from `Design/Increment/` to `Design/Archive/`;
+  `Design/Increment/` now holds only its `README.md`.

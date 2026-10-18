@@ -12,4 +12,4 @@ Main features:
 - all pages have navigation bar
 
 
-For MVP we are building only login with hardcoded users, calendar of events for hardcoded set of events, event page, navigation bar. User data and event date should be stored on backend side.
+For MVP we are building only login with hardcoded users, calendar of events for hardcoded set of events, event page, navigation bar. User data and event date should be stored on backend side. 
