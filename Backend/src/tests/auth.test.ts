@@ -16,8 +16,17 @@ const adminRow: UserRow = {
   passwordHash:
     'df4079a602d5f1f40a6d9c3d2db9e31c7163d3451b0637eb845007d0707982ebbd1fa56fca0a74afbcc23b310407c44b3005b2d3f81e9cc1f5d277a04c36644d',
   name: 'Admin',
-  role: 'admin',
+  role: 'administrator',
+  isBanned: false,
   createdAt: new Date('2026-10-07T00:00:00.000Z'),
+}
+
+const bannedRow: UserRow = {
+  ...adminRow,
+  id: 2,
+  email: 'banned@gmail.com',
+  name: 'Banned',
+  isBanned: true,
 }
 
 function mockUserLookup(row: UserRow | null): void {
@@ -31,7 +40,7 @@ describe('POST /api/auth/login', () => {
     vi.clearAllMocks()
   })
 
-  it('logs in the admin user and returns a token plus the public user', async () => {
+  it('logs in the administrator user and returns a token plus the public user', async () => {
     mockUserLookup(adminRow)
     const res = await request(app)
       .post('/api/auth/login')
@@ -44,9 +53,19 @@ describe('POST /api/auth/login', () => {
       id: 1,
       email: 'admin@gmail.com',
       name: 'Admin',
-      role: 'admin',
+      role: 'administrator',
+      isBanned: false,
     })
     expect(res.body.user.passwordHash).toBeUndefined()
+  })
+
+  it('rejects a banned user with 403 and the banned message', async () => {
+    mockUserLookup(bannedRow)
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'banned@gmail.com', password: '1234' })
+    expect(res.status).toBe(403)
+    expect(res.body).toEqual({ error: 'You are banned, contact administrator' })
   })
 
   it('rejects a wrong password with 401', async () => {
@@ -88,7 +107,8 @@ describe('GET /api/auth/me', () => {
       id: 1,
       email: 'admin@gmail.com',
       name: 'Admin',
-      role: 'admin',
+      role: 'administrator',
+      isBanned: false,
     })
   })
 
@@ -104,5 +124,14 @@ describe('GET /api/auth/me', () => {
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(401)
+  })
+
+  it('responds 403 for a banned user with a valid token', async () => {
+    mockUserLookup(bannedRow)
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${issueToken(bannedRow.id)}`)
+    expect(res.status).toBe(403)
+    expect(res.body).toEqual({ error: 'You are banned, contact administrator' })
   })
 })

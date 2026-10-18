@@ -14,11 +14,12 @@ const LINKS = [
 
 /**
  * Desktop: fixed left sidebar. Mobile: burger button toggling the panel.
- * Contains the language switcher and the log-out action.
+ * Contains the language switcher, the log-out action, and the role-gated
+ * moderation / administration buttons.
  */
 export default function NavPanel() {
   const { t } = useI18n()
-  const { logout } = useAuth()
+  const { logout, canModerate, canAdminister } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -51,6 +52,28 @@ export default function NavPanel() {
               </NavLink>
             </li>
           ))}
+          {canModerate && (
+            <li>
+              <NavLink
+                to="/moderation"
+                onClick={() => setOpen(false)}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                {t('nav.moderation')}
+              </NavLink>
+            </li>
+          )}
+          {canAdminister && (
+            <li>
+              <NavLink
+                to="/administration"
+                onClick={() => setOpen(false)}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                {t('nav.administration')}
+              </NavLink>
+            </li>
+          )}
         </ul>
         <LanguageSwitcher />
         <button type="button" className="nav-logout" onClick={handleLogout}>

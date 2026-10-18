@@ -3,6 +3,12 @@ import { PASSWORD_SALT, env } from '../config/env.js'
 import { pool } from '../db/pool.js'
 import { toPublicUser, type PublicUser, type UserRow } from '../models/user.js'
 
+/** Result of a credential check: ok (with user), banned, or null (bad credentials). */
+export type CredentialCheck =
+  | { status: 'ok'; user: PublicUser }
+  | { status: 'banned' }
+  | null
+
 const TOKEN_ALG = 'HS256'
 const TOKEN_TYP = 'abadaglobal'
 
@@ -20,7 +26,7 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 export async function findByEmail(email: string): Promise<UserRow | null> {
   const { rows } = await pool.query<UserRow>(
     `SELECT id, email, password_hash AS "passwordHash", name, role,
-            created_at AS "createdAt"
+            is_banned AS "isBanned", created_at AS "createdAt"
        FROM users
       WHERE email = $1`,
     [email],
@@ -31,7 +37,7 @@ export async function findByEmail(email: string): Promise<UserRow | null> {
 export async function findById(id: number): Promise<UserRow | null> {
   const { rows } = await pool.query<UserRow>(
     `SELECT id, email, password_hash AS "passwordHash", name, role,
-            created_at AS "createdAt"
+            is_banned AS "isBanned", created_at AS "createdAt"
        FROM users
       WHERE id = $1`,
     [id],
@@ -39,16 +45,23 @@ export async function findById(id: number): Promise<UserRow | null> {
   return rows[0] ?? null
 }
 
-/** Validate email + password; returns the public user or null. */
+/**
+ * Validate email + password.
+ * Returns `{ status: 'ok', user }` on success, `{ status: 'banned' }` when the
+ * account is banned, or null for bad credentials.
+ */
 export async function verifyCredentials(
   email: string,
   password: string,
-): Promise<PublicUser | null> {
+): Promise<CredentialCheck> {
   const row = await findByEmail(email)
   if (!row || !verifyPassword(password, row.passwordHash)) {
     return null
   }
-  return toPublicUser(row)
+  if (row.isBanned) {
+    return { status: 'banned' }
+  }
+  return { status: 'ok', user: toPublicUser(row) }
 }
 
 export interface TokenPayload {

@@ -27,6 +27,11 @@ Decisions defining the MVP, derived from [[sources/main|the Main increment doc]]
 Admin, moderator, and simple user roles exist, but in the MVP all roles have
 the same rights — only whether the user is logged in matters.
 
+> **Superseded in version0.2:** real role differences were introduced — four
+> levels (default, moderator, administrator, super admin) with role-gated
+> moderation and administration pages. See
+> [[rights-model|Rights Model]].
+
 ## Languages
 
 All three languages (Russian, English, Portuguese) are in MVP scope;

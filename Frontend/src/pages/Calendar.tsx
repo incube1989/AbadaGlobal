@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, fetchEvents } from '../api/client'
+import { ApiError, fetchCountries, fetchEvents, fetchRegions } from '../api/client'
+import type { Country, Region, User } from '../api/types'
 import {
   EVENT_SCOPES,
   EVENT_TYPES,
@@ -44,7 +45,7 @@ function EventPanel({ event, onClick }: PanelProps) {
     <button type="button" className={`event-panel ${SCOPE_CLASS[event.scope]}`} onClick={onClick}>
       <span className="event-panel-name">{event.name}</span>
       <span className="event-panel-meta">
-        {shortDate(event.startDate, lang)} – {shortDate(event.endDate, lang)} · {event.place}
+        {shortDate(event.startDate, lang)} – {shortDate(event.endDate, lang)}
       </span>
     </button>
   )
@@ -122,9 +123,23 @@ function DayGrid({ month, events, onSelect }: DayGridProps) {
   )
 }
 
+/** Can the user edit the event? Owner, or moderator/administrator. */
+function canEditEvent(event: Event, user: User | null): boolean {
+  if (!user) return false
+  if (
+    user.role === 'moderator' ||
+    user.role === 'administrator' ||
+    user.role === 'super admin'
+  ) {
+    return true
+  }
+  if (event.createdBy === user.id) return true
+  return event.owners.some((o) => o.userId === user.id)
+}
+
 /** Calendar page: month/week/day views, scope & type filters, event popups. */
 export default function Calendar() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const { t, lang } = useI18n()
   const [view, setView] = useState<DateView>('months')
   const [events, setEvents] = useState<Event[]>([])
@@ -133,6 +148,8 @@ export default function Calendar() {
   const [scopes, setScopes] = useState<EventScope[]>([])
   const [types, setTypes] = useState<EventType[]>([])
   const [selected, setSelected] = useState<Event | null>(null)
+  const [countries, setCountries] = useState<Country[]>([])
+  const [regions, setRegions] = useState<Region[]>([])
 
   useEffect(() => {
     if (!token) return
@@ -155,6 +172,30 @@ export default function Calendar() {
       cancelled = true
     }
   }, [token])
+
+  // Country/region name maps for the popup and event panels.
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    fetchCountries(undefined, token)
+      .then((list) => {
+        if (!cancelled) setCountries(list)
+      })
+      .catch(() => undefined)
+    fetchRegions(undefined, undefined, token)
+      .then((list) => {
+        if (!cancelled) setRegions(list)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const countryName = (id: number | null) =>
+    id === null ? '—' : (countries.find((c) => c.id === id)?.name ?? `#${id}`)
+  const regionName = (id: number | null) =>
+    id === null ? '—' : (regions.find((r) => r.id === id)?.name ?? `#${id}`)
 
   const filtered = useMemo(
     () =>
@@ -227,7 +268,12 @@ export default function Calendar() {
 
   return (
     <main className="calendar-page">
-      <h1>{t('calendar.title')}</h1>
+      <div className="calendar-header">
+        <h1>{t('calendar.title')}</h1>
+        <Link className="btn-primary" to="/events/new">
+          {t('calendar.createEvent')}
+        </Link>
+      </div>
 
       <div className="calendar-toolbar">
         <div className="view-toggle" role="group" aria-label="View">
@@ -324,7 +370,10 @@ export default function Calendar() {
               {t('event.endDate')}: {shortDate(selected.endDate, lang)}
             </p>
             <p>
-              {t('event.place')}: {selected.place}
+              {t('event.country')}: {countryName(selected.countryId)}
+            </p>
+            <p>
+              {t('event.region')}: {regionName(selected.regionId)}
             </p>
             <p>
               {t('event.type')}: {t(`type.${selected.type}`)}
@@ -334,6 +383,9 @@ export default function Calendar() {
             </p>
             <div className="event-popup-actions">
               <Link to={`/events/${selected.id}`}>{t('calendar.popup.openEvent')}</Link>
+              {canEditEvent(selected, user) && (
+                <Link to={`/events/${selected.id}/edit`}>{t('calendar.popup.editEvent')}</Link>
+              )}
               <button type="button" onClick={() => setSelected(null)}>
                 {t('calendar.popup.close')}
               </button>

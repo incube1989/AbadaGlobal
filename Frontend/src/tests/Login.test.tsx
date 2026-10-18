@@ -18,6 +18,8 @@ vi.mock('../api/client', () => ({
   login: vi.fn(),
   fetchEvents: vi.fn().mockResolvedValue([]),
   fetchEvent: vi.fn(),
+  fetchCountries: vi.fn().mockResolvedValue([]),
+  fetchRegions: vi.fn().mockResolvedValue([]),
 }))
 
 describe('Login page', () => {
@@ -25,7 +27,13 @@ describe('Login page', () => {
     localStorage.clear()
     vi.mocked(login).mockResolvedValue({
       token: 'token-123',
-      user: { id: 1, email: 'admin@gmail.com', name: 'Admin', role: 'admin' },
+      user: {
+        id: 1,
+        email: 'admin@gmail.com',
+        name: 'Admin',
+        role: 'administrator',
+        isBanned: false,
+      },
     })
   })
 

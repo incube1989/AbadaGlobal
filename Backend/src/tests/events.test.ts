@@ -3,12 +3,23 @@ import request from 'supertest'
 import { app } from '../app.js'
 import { pool } from '../db/pool.js'
 import type { Event } from '../models/event.js'
+import type { UserRow } from '../models/user.js'
 import { issueToken } from '../services/auth.service.js'
 
-// Isolate the API from PostgreSQL — pool.query is mocked in every test.
+// Isolate the API from PostgreSQL — pool.query / pool.connect are mocked.
 vi.mock('../db/pool.js', () => ({
-  pool: { query: vi.fn() },
+  pool: { query: vi.fn(), connect: vi.fn() },
 }))
+
+const viewerRow: UserRow = {
+  id: 1,
+  email: 'admin@gmail.com',
+  passwordHash: 'x',
+  name: 'Admin',
+  role: 'administrator',
+  isBanned: false,
+  createdAt: new Date('2026-10-07T00:00:00.000Z'),
+}
 
 const sampleEvents: Event[] = [
   {
@@ -16,27 +27,66 @@ const sampleEvents: Event[] = [
     name: 'Zumbimba',
     startDate: '2027-11-01',
     endDate: '2027-11-30',
-    place: 'Rio de Janeiro',
+    countryId: 3,
+    regionId: 7,
     type: 'batizado',
     scope: 'world',
+    status: 'published',
+    createdBy: 1,
+    owners: [{ userId: 1 }],
   },
   {
     id: 2,
     name: 'Competition',
     startDate: '2026-12-04',
     endDate: '2026-12-06',
-    place: 'Voronezh',
+    countryId: 1,
+    regionId: 4,
     type: 'competition',
     scope: 'Russia',
+    status: 'published',
+    createdBy: 1,
+    owners: [{ userId: 1 }],
   },
 ]
 
 const token = issueToken(1)
 
-function mockRows(rows: unknown[]): void {
-  vi.mocked(pool.query).mockResolvedValue({
-    rows,
-  } as unknown as Awaited<ReturnType<typeof pool.query>>)
+type QueryResult = { rows: unknown[]; rowCount?: number }
+
+/** Dispatch pool.query / client.query by SQL content. */
+function mockDb(dispatch: (sql: string, params?: unknown[]) => QueryResult): void {
+  const impl = async (sql: string, params?: unknown[]): Promise<QueryResult> =>
+    dispatch(sql, params)
+  vi.mocked(pool.query).mockImplementation(impl as never)
+  const client = { query: vi.fn(impl as never), release: vi.fn() }
+  vi.mocked(pool.connect).mockResolvedValue(client as never)
+}
+
+function defaultDispatch(events: Event[] = sampleEvents) {
+  return (sql: string): QueryResult => {
+    if (sql.includes('FROM users')) {
+      return { rows: [viewerRow] }
+    }
+    // NOTE: the events list query contains an EXISTS subquery over
+    // event_owners, so 'FROM events' must be matched before 'FROM event_owners'.
+    if (sql.includes('FROM events')) {
+      return { rows: events }
+    }
+    if (sql.includes('FROM event_owners')) {
+      return { rows: [{ userId: 1, personId: null }] }
+    }
+    if (sql.includes('INSERT INTO events')) {
+      return { rows: [events[0]] }
+    }
+    if (sql.includes('UPDATE events')) {
+      return { rows: [events[0]] }
+    }
+    if (sql.includes('DELETE FROM event_owners')) {
+      return { rows: [] }
+    }
+    return { rows: [] }
+  }
 }
 
 describe('GET /api/events', () => {
@@ -49,25 +99,26 @@ describe('GET /api/events', () => {
     expect(res.status).toBe(401)
   })
 
-  it('lists all events with a valid token', async () => {
-    mockRows(sampleEvents)
+  it('lists events with a valid token', async () => {
+    mockDb(defaultDispatch())
     const res = await request(app)
       .get('/api/events')
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
     expect(res.body).toHaveLength(2)
-    expect(res.body[0]).toMatchObject({ name: 'Zumbimba', scope: 'world' })
+    expect(res.body[0]).toMatchObject({ name: 'Zumbimba', scope: 'world', status: 'published' })
+    expect(res.body[0].owners).toEqual([{ userId: 1 }])
   })
 
   it('passes scope and type filters to the query', async () => {
-    mockRows([sampleEvents[1]])
+    mockDb(defaultDispatch([sampleEvents[1]]))
     await request(app)
       .get('/api/events?scope=Russia&type=competition')
       .set('Authorization', `Bearer ${token}`)
 
     expect(vi.mocked(pool.query)).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE scope = $1 AND type = $2'),
-      ['Russia', 'competition'],
+      expect.stringContaining('e.scope = $1 AND e.type = $2'),
+      expect.anything(),
     )
   })
 
@@ -97,7 +148,7 @@ describe('GET /api/events/:id', () => {
   })
 
   it('returns a single event', async () => {
-    mockRows([sampleEvents[0]])
+    mockDb(defaultDispatch([sampleEvents[0]]))
     const res = await request(app)
       .get('/api/events/1')
       .set('Authorization', `Bearer ${token}`)
@@ -106,7 +157,7 @@ describe('GET /api/events/:id', () => {
   })
 
   it('responds 404 for an unknown id', async () => {
-    mockRows([])
+    mockDb(defaultDispatch([]))
     const res = await request(app)
       .get('/api/events/9999')
       .set('Authorization', `Bearer ${token}`)
@@ -118,5 +169,102 @@ describe('GET /api/events/:id', () => {
       .get('/api/events/abc')
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(400)
+  })
+})
+
+describe('POST /api/events', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('creates an event and returns 201', async () => {
+    mockDb(defaultDispatch())
+    const res = await request(app)
+      .post('/api/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'New event',
+        startDate: '2028-01-10',
+        endDate: '2028-01-12',
+        countryId: 1,
+        regionId: 2,
+        type: 'camp',
+        scope: 'region',
+      })
+    expect(res.status).toBe(201)
+    expect(res.body).toMatchObject({ name: 'Zumbimba' })
+  })
+
+  it('rejects invalid event data with 400', async () => {
+    mockDb(defaultDispatch())
+    const res = await request(app)
+      .post('/api/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: '', startDate: 'bad', endDate: '2028-01-12', type: 'camp', scope: 'region' })
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('PUT /api/events/:id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('updates an event the user owns', async () => {
+    mockDb(defaultDispatch())
+    const res = await request(app)
+      .put('/api/events/1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Updated event',
+        startDate: '2028-02-01',
+        endDate: '2028-02-03',
+        countryId: 1,
+        regionId: null,
+        type: 'festival',
+        scope: 'local',
+        owners: [{ userId: 1 }],
+      })
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ name: 'Zumbimba' })
+  })
+
+  it('responds 404 for an unknown event', async () => {
+    mockDb(defaultDispatch([]))
+    const res = await request(app)
+      .put('/api/events/9999')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'X',
+        startDate: '2028-02-01',
+        endDate: '2028-02-03',
+        countryId: null,
+        regionId: null,
+        type: 'festival',
+        scope: 'local',
+      })
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /api/events/:id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('soft-deletes an event the user owns', async () => {
+    mockDb(defaultDispatch())
+    const res = await request(app)
+      .delete('/api/events/1')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(204)
+  })
+
+  it('responds 404 for an unknown event', async () => {
+    mockDb(defaultDispatch([]))
+    const res = await request(app)
+      .delete('/api/events/9999')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(404)
   })
 })

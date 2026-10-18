@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AbadaGlobal API
-  version: 0.2.0
+  version: 0.3.0
   description: >-
     API contract for the AbadaGlobal site. This file is the single source of
     truth for the HTTP surface shared between the frontend and the backend.
@@ -27,8 +27,8 @@ paths:
       operationId: login
       summary: Log in with email and password
       description: >-
-        Validates the hardcoded MVP users and returns an opaque bearer token
-        that expires in 7 days together with the public user.
+        Validates the user and returns an opaque bearer token that expires in
+        7 days together with the public user. Banned users get 403.
       requestBody:
         required: true
         content:
@@ -46,6 +46,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /auth/me:
     get:
       operationId: getMe
@@ -66,8 +68,10 @@ paths:
       operationId: listEvents
       summary: List calendar events
       description: >-
-        Returns all events ordered by start date. The optional scope and type
-        query parameters filter by exact match and can be combined.
+        Returns published events ordered by start date. The optional scope and
+        type query parameters filter by exact match and can be combined.
+        Draft events are additionally returned to their owner, moderators, and
+        administrators. Deleted events are never returned.
       security:
         - bearerAuth: []
       parameters:
@@ -90,6 +94,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Event"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createEvent
+      summary: Create a new event
+      description: >-
+        Any logged-in user can create an event. The creator is added as an
+        owner automatically. Status defaults to published.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: The created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -117,6 +146,523 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateEvent
+      summary: Edit an event
+      description: >-
+        Allowed for the event owner, moderators, and administrators. Updates
+        fields and the owner list.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "200":
+          description: The updated event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteEvent
+      summary: Soft-delete an event
+      description: >-
+        Sets status to deleted. Allowed for the event owner, moderators, and
+        administrators.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Event soft-deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /owner-candidates:
+    get:
+      operationId: listOwnerCandidates
+      summary: Search users and persons for the event owner picker
+      description: >-
+        Returns non-deleted persons — event owners are persons only, so users
+        are never candidates. An empty search returns every person in
+        alphabetical order (for the picker dropdown on focus); a non-empty
+        search matches the nickname case-insensitively by substring. When the
+        ids query parameter is given, resolves exactly those persons
+        (format "person:1,person:2") instead of searching.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: ids
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated user:/person: ids to resolve exactly
+      responses:
+        "200":
+          description: Owner candidates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OwnerCandidate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /countries:
+    get:
+      operationId: listCountries
+      summary: List countries
+      description: Returns non-deleted countries, optionally filtered by name.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Countries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Country"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createCountry
+      summary: Add a country
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CountryInput"
+      responses:
+        "201":
+          description: The created country
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Country"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /countries/{id}:
+    put:
+      operationId: updateCountry
+      summary: Edit a country
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CountryInput"
+      responses:
+        "200":
+          description: The updated country
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Country"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteCountry
+      summary: Soft-delete a country
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Country soft-deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /regions:
+    get:
+      operationId: listRegions
+      summary: List regions
+      description: >-
+        Returns non-deleted regions, optionally filtered by country and/or
+        searched by name.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: countryId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Regions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Region"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createRegion
+      summary: Add a region
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegionInput"
+      responses:
+        "201":
+          description: The created region
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Region"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /regions/{id}:
+    put:
+      operationId: updateRegion
+      summary: Edit a region
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegionInput"
+      responses:
+        "200":
+          description: The updated region
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Region"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteRegion
+      summary: Soft-delete a region
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Region soft-deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /persons:
+    get:
+      operationId: listPersons
+      summary: List persons
+      description: >-
+        Returns non-deleted persons, optionally filtered by country and/or
+        searched by nickname.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: countryId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Persons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Person"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createPerson
+      summary: Add a person
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonInput"
+      responses:
+        "201":
+          description: The created person
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /persons/{id}:
+    put:
+      operationId: updatePerson
+      summary: Edit a person or link/unlink a user
+      description: >-
+        Updates nickname/country and optionally links (userId set) or unlinks
+        (userId null) the person to a user account.
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonInput"
+      responses:
+        "200":
+          description: The updated person
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePerson
+      summary: Soft-delete a person
+      x-required-role: moderator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Person soft-deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      summary: List all users (admin)
+      x-required-role: administrator
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All users with role and ban state
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/users/{id}/role:
+    put:
+      operationId: changeUserRole
+      summary: Change a user's rights (admin)
+      description: >-
+        Changes the role of any user except a super admin. Administrators may
+        change each other.
+      x-required-role: administrator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRoleRequest"
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{id}/ban:
+    put:
+      operationId: setUserBan
+      summary: Ban or unban a user (admin)
+      description: >-
+        Sets the banned flag of any user except a super admin. Banned users
+        cannot log in.
+      x-required-role: administrator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetBanRequest"
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     bearerAuth:
@@ -134,6 +680,12 @@ components:
     Unauthorized:
       description: >-
         Missing, invalid, or expired token; or bad credentials on /auth/login
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: The user lacks the required rights (or is banned)
       content:
         application/json:
           schema:
@@ -159,9 +711,12 @@ components:
           type: string
           format: date-time
           description: Server time of the response
+    Role:
+      type: string
+      enum: [default, moderator, administrator, super admin]
     User:
       type: object
-      required: [id, email, name, role]
+      required: [id, email, name, role, isBanned]
       properties:
         id:
           type: integer
@@ -171,8 +726,10 @@ components:
         name:
           type: string
         role:
-          type: string
-          enum: [admin, moderator, simple user]
+          $ref: "#/components/schemas/Role"
+        isBanned:
+          type: boolean
+          description: Banned users cannot log in
     LoginRequest:
       type: object
       required: [email, password]
@@ -192,9 +749,28 @@ components:
           description: Opaque bearer token, expires after 7 days
         user:
           $ref: "#/components/schemas/User"
+    EventType:
+      type: string
+      enum: [competition, festival, batizado, camp, coach only]
+    EventScope:
+      type: string
+      enum: [world, Russia, region, local]
+    EventStatus:
+      type: string
+      enum: [draft, published, deleted]
+    EventOwner:
+      type: object
+      description: One of userId or personId is set
+      properties:
+        userId:
+          type: integer
+          nullable: true
+        personId:
+          type: integer
+          nullable: true
     Event:
       type: object
-      required: [id, name, startDate, endDate, place, type, scope]
+      required: [id, name, startDate, endDate, type, scope, status, createdBy, owners]
       properties:
         id:
           type: integer
@@ -206,18 +782,144 @@ components:
         endDate:
           type: string
           format: date
-        place:
-          type: string
+        countryId:
+          type: integer
+          nullable: true
+        regionId:
+          type: integer
+          nullable: true
         type:
           $ref: "#/components/schemas/EventType"
         scope:
           $ref: "#/components/schemas/EventScope"
-    EventType:
-      type: string
-      enum: [competition, festival, batizado, camp, coach only]
-    EventScope:
-      type: string
-      enum: [world, Russia, region, local]
+        status:
+          $ref: "#/components/schemas/EventStatus"
+        createdBy:
+          type: integer
+        owners:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventOwner"
+    EventInput:
+      type: object
+      required: [name, startDate, endDate, type, scope]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        countryId:
+          type: integer
+          nullable: true
+        regionId:
+          type: integer
+          nullable: true
+        type:
+          $ref: "#/components/schemas/EventType"
+        scope:
+          $ref: "#/components/schemas/EventScope"
+        status:
+          $ref: "#/components/schemas/EventStatus"
+        owners:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventOwner"
+    Country:
+      type: object
+      required: [id, name, isDeleted]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        isDeleted:
+          type: boolean
+    CountryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+    Region:
+      type: object
+      required: [id, name, countryId, isDeleted]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        countryId:
+          type: integer
+        isDeleted:
+          type: boolean
+    RegionInput:
+      type: object
+      required: [name, countryId]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        countryId:
+          type: integer
+    Person:
+      type: object
+      required: [id, nickname, countryId, isDeleted]
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        countryId:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+          description: Linked user account, if any
+        isDeleted:
+          type: boolean
+    PersonInput:
+      type: object
+      required: [nickname, countryId]
+      properties:
+        nickname:
+          type: string
+          minLength: 1
+        countryId:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+          description: Set to link, null to unlink
+    OwnerCandidate:
+      type: object
+      required: [type, id, label]
+      properties:
+        type:
+          type: string
+          enum: [user, person]
+        id:
+          type: integer
+        label:
+          type: string
+          description: Display name; users include their email
+    ChangeRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+    SetBanRequest:
+      type: object
+      required: [banned]
+      properties:
+        banned:
+          type: boolean
     ErrorResponse:
       type: object
       required: [error]

@@ -11,9 +11,17 @@ vi.mock('../api/client', () => ({
   login: vi.fn(),
   fetchEvents: vi.fn(),
   fetchEvent: vi.fn(),
+  fetchCountries: vi.fn().mockResolvedValue([]),
+  fetchRegions: vi.fn().mockResolvedValue([]),
 }))
 
-const user: User = { id: 1, email: 'admin@gmail.com', name: 'Admin', role: 'admin' }
+const user: User = {
+  id: 1,
+  email: 'admin@gmail.com',
+  name: 'Admin',
+  role: 'administrator',
+  isBanned: false,
+}
 
 const sampleEvents: Event[] = [
   {
@@ -21,18 +29,26 @@ const sampleEvents: Event[] = [
     name: 'Zumbimba',
     startDate: '2027-11-01',
     endDate: '2027-11-30',
-    place: 'Rio de Janeiro',
+    countryId: 3,
+    regionId: 7,
     type: 'batizado',
     scope: 'world',
+    status: 'published',
+    createdBy: 1,
+    owners: [{ userId: 1 }],
   },
   {
     id: 2,
     name: 'Competition',
     startDate: '2026-12-04',
     endDate: '2026-12-06',
-    place: 'Voronezh',
+    countryId: 1,
+    regionId: 4,
     type: 'competition',
     scope: 'Russia',
+    status: 'published',
+    createdBy: 1,
+    owners: [{ userId: 1 }],
   },
 ]
 
@@ -52,6 +68,16 @@ describe('Calendar page', () => {
     expect(await screen.findByText('Zumbimba')).toBeInTheDocument()
     expect(screen.getByText('Competition')).toBeInTheDocument()
     expect(fetchEvents).toHaveBeenCalled()
+  })
+
+  it('shows the create-event button for logged-in users', async () => {
+    renderWithProviders(<App />, {
+      initialEntries: ['/calendar'],
+      token: 'valid-token',
+    })
+
+    expect(await screen.findByText('Zumbimba')).toBeInTheDocument()
+    expect(screen.getByText('Создать событие')).toBeInTheDocument()
   })
 
   it('filters events by scope', async () => {

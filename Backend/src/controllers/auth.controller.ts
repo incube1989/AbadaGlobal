@@ -13,11 +13,16 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: 'Email and password are required' })
     return
   }
-  const user = await verifyCredentials(email, password)
-  if (!user) {
+  const check = await verifyCredentials(email, password)
+  if (check === null) {
     res.status(401).json({ error: 'Invalid email or password' })
     return
   }
+  if (check.status === 'banned') {
+    res.status(403).json({ error: 'You are banned, contact administrator' })
+    return
+  }
+  const { user } = check
   res.json({ token: issueToken(user.id), user })
 }
 

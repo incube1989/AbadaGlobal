@@ -2,8 +2,8 @@
 title: Project Overview
 tags: [overview]
 created: 2026-10-07
-updated: 2026-10-07
-sources: 6
+updated: 2026-10-18
+sources: 12
 ---
 
 # AbadaGlobal — Project Overview
@@ -24,33 +24,49 @@ Monorepo with four top-level areas:
 
 ## Main features
 
-Calendar with create/edit events, login with three roles (admin, moderator,
-simple user), per-user notifications, video database with manual access, main
-page with school info and upcoming events, logged-in-only pages by default,
-three languages (Russian main, English, Portuguese), desktop and mobile,
-navigation bar on all pages.
+Calendar with create/edit events, login with four rights levels (default,
+moderator, administrator, super admin), per-user notifications (later), video
+database with manual access (later), main page with school info and upcoming
+events (later), logged-in-only pages by default, three languages (Russian main,
+English, Portuguese), desktop and mobile, navigation bar on all pages.
 
-## MVP scope
+## MVP scope (built)
 
 Login with hardcoded users (email + password, 7-day token), calendar from a
-hardcoded event set, event page, navigation bar. All roles equal in the MVP —
-only the logged-in state matters. All three languages in scope, starting with
-Russian. Details: [[concepts/mvp-scope|MVP Scope]].
+hardcoded event set, event page, navigation bar. Details:
+[[concepts/mvp-scope|MVP Scope]].
+
+## version0.2 (built)
+
+- Four **rights levels** with a super-admin guarantee; admin panel (change
+  rights, ban); moderation page (countries / regions / persons, 3 tabs)
+  → [[concepts/rights-model|Rights Model]]
+- **Event create / edit / soft-delete**; event now has country+region,
+  `draft | published | deleted` status, a creator, and a **persons-only**
+  owner list → [[concepts/calendar-spec|Calendar Spec]],
+  [[concepts/domain-model|Domain Model]]
+- **Persons** (nickname + country, optional user link) and countries/regions
+  entities → [[sources/users-and-persons]]
+- User banning (banned users cannot log in) → [[concepts/rights-model|Rights Model]]
+- Plan and tasks: [`Plans/version0.2/`](../../Plans/version0.2/README.md)
 
 ## Current state
 
 - Monorepo scaffolded with working dev setup for frontend and backend
-- API contract defines the health endpoint (`GET /api/health`)
-- Database migration pipeline in place
-- Design batch merged: vision, MVP, calendar spec, domain model, seed events
+- Database migration pipeline in place (MVP + version0.2 migrations applied)
+- API contract covers auth, events CRUD, moderation, and admin
+- Design batches merged: vision, MVP, calendar spec, domain model, seed events,
+  version0.2 (rights model, moderation, event CRUD, persons)
 
 ## Open questions
 
-- Exact dates/city for Jogos Mundiais (August 2027) and venue for the kids camp
-- Detailed MVP page specs (deferred by the team to a follow-up task)
-- API contract additions for auth and events (update
-  `Contracts/api/openapi.yaml` first)
+- Jogos Mundiais 2027 exact dates/city and venue remain TBD
+- Private-data visibility ([[sources/admin-panel]]) is deferred
+- Person entity extra fields are deferred
+- Event draft workflow (the draft button exists but is disabled)
+- Notifications and video database remain post-MVP
 
 ## Source count
 
-Six raw sources ingested (design increment batch, 2026-10-07).
+Twelve raw sources ingested (MVP design batch 2026-10-07 + version0.2 batch
+2026-10-18).

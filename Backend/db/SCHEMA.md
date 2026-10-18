@@ -25,26 +25,64 @@ erDiagram
         text email UK "Login email"
         text password_hash "scrypt digest"
         text name "Display name"
-        text role "admin | moderator | simple user"
+        text role "default | moderator | administrator | super admin"
+        boolean is_banned "Banned users cannot log in"
         timestamptz created_at "Account creation time"
+    }
+    COUNTRIES {
+        serial id PK "Surrogate key"
+        text name UK "Country name"
+        boolean is_deleted "Soft-delete flag"
+        timestamptz created_at "Creation time"
+    }
+    REGIONS {
+        serial id PK "Surrogate key"
+        text name "Region name"
+        int country_id FK "Owning country"
+        boolean is_deleted "Soft-delete flag"
+        timestamptz created_at "Creation time"
+    }
+    PERSONS {
+        serial id PK "Surrogate key"
+        text nickname "Apelido"
+        int country_id FK "Country"
+        int user_id FK "Optional unique user link"
+        boolean is_deleted "Soft-delete flag"
+        timestamptz created_at "Creation time"
     }
     EVENTS {
         serial id PK "Surrogate key"
         text name "Event name"
         date start_date "First day (inclusive)"
         date end_date "Last day (inclusive)"
-        text place "Venue / city"
+        int country_id FK "Country (nullable)"
+        int region_id FK "Region (nullable)"
         text type "competition | festival | batizado | camp | coach only"
         text scope "world | Russia | region | local"
+        text status "draft | published | deleted"
+        int created_by FK "Creating user"
     }
+    EVENT_OWNERS {
+        serial id PK "Surrogate key"
+        int event_id FK "Owned event"
+        int user_id FK "Owner user (nullable)"
+        int person_id FK "Owner person (nullable)"
+    }
+    USERS ||--o{ PERSONS : "user_id (unique)"
+    COUNTRIES ||--o{ REGIONS : country_id
+    COUNTRIES ||--o{ PERSONS : country_id
+    COUNTRIES ||--o{ EVENTS : country_id
+    REGIONS ||--o{ EVENTS : region_id
+    USERS ||--o{ EVENTS : created_by
+    EVENTS ||--o{ EVENT_OWNERS : event_id
 ```
 
 ## Tables
 
 ### `users`
 
-MVP accounts (login with email + password). All roles have equal rights in
-the MVP — only the logged-in state matters.
+Accounts (login with email + password). Four rights levels; super admin cannot
+be stripped of rights and at least one must always exist (startup check).
 
 | Column | Type | Nullable | Default | Comment |
 | ------ | ---- | -------- | ------- | ------- |
@@ -52,13 +90,53 @@ the MVP — only the logged-in state matters.
 | `email` | `text` | no | — | Unique login email. |
 | `password_hash` | `text` | no | — | scrypt digest of the password (salt `abadaglobal-mvp-salt`), 64-byte hex. |
 | `name` | `text` | no | — | Display name of the user. |
-| `role` | `text` | no | — | `admin`, `moderator`, or `simple user` (CHECK constraint). |
+| `role` | `text` | no | — | `default`, `moderator`, `administrator`, or `super admin` (CHECK constraint). |
+| `is_banned` | `boolean` | no | `false` | Banned users cannot log in. |
 | `created_at` | `timestamptz` | no | `now()` | Account creation time. |
+
+### `countries`
+
+Countries managed on the moderation page; referenced by regions, persons, and
+events.
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `name` | `text` | no | — | Country name (unique). |
+| `is_deleted` | `boolean` | no | `false` | Soft-delete flag (mark as deleted). |
+| `created_at` | `timestamptz` | no | `now()` | Creation time. |
+
+### `regions`
+
+Regions within a country, managed on the moderation page; referenced by events.
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `name` | `text` | no | — | Region name (unique within a country). |
+| `country_id` | `integer` | no | — | Owning country (FK → `countries.id`). |
+| `is_deleted` | `boolean` | no | `false` | Soft-delete flag (mark as deleted). |
+| `created_at` | `timestamptz` | no | `now()` | Creation time. |
+
+### `persons`
+
+Real people in the school, identified by country + nickname (apelido). A
+person may be linked to at most one user; a person can exist without a user
+and vice versa.
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `nickname` | `text` | no | — | Nickname (apelido) of the person. |
+| `country_id` | `integer` | no | — | Country of the person (FK → `countries.id`). |
+| `user_id` | `integer` | yes | — | Optional link to the user account (FK → `users.id`, unique). |
+| `is_deleted` | `boolean` | no | `false` | Soft-delete flag (mark as deleted). |
+| `created_at` | `timestamptz` | no | `now()` | Creation time. |
 
 ### `events`
 
-Calendar events for the MVP. Data comes from the hardcoded 2026–2027 seed
-list; create/edit (CRUD) is deferred post-MVP.
+Calendar events. `place` (text) was replaced by `country_id` + `region_id`;
+events carry a lifecycle status and a creator, and can have an owner list.
 
 | Column | Type | Nullable | Default | Comment |
 | ------ | ---- | -------- | ------- | ------- |
@@ -66,30 +144,55 @@ list; create/edit (CRUD) is deferred post-MVP.
 | `name` | `text` | no | — | Event name shown on the calendar panel. |
 | `start_date` | `date` | no | — | First day of the event (inclusive). |
 | `end_date` | `date` | no | — | Last day of the event (inclusive). |
-| `place` | `text` | no | — | Standardized English place name; `TBD` where the source gives no venue. |
+| `country_id` | `integer` | yes | — | Country of the event (FK → `countries.id`; nullable while TBD). |
+| `region_id` | `integer` | yes | — | Region of the event (FK → `regions.id`; nullable). |
 | `type` | `text` | no | — | `competition`, `festival`, `batizado`, `camp`, `coach only` (CHECK constraint). |
 | `scope` | `text` | no | — | `world`, `Russia`, `region`, `local` (CHECK constraint). Drives the calendar panel color. |
+| `status` | `text` | no | `published` | `draft`, `published`, or `deleted` (CHECK constraint; deleted = soft delete). |
+| `created_by` | `integer` | no | — | Creating user (FK → `users.id`). |
+
+### `event_owners`
+
+Owner list of an event: users and/or persons. The creator is added
+automatically and may remove themselves; owners can be added and removed.
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `event_id` | `integer` | no | — | The owned event (FK → `events.id`, cascade delete). |
+| `user_id` | `integer` | yes | — | Owner user (FK → `users.id`; exactly one of user/person is set). |
+| `person_id` | `integer` | yes | — | Owner person (FK → `persons.id`; exactly one of user/person is set). |
 
 Unique constraints:
 
 - `users.email` — one account per email (also makes the seed idempotent).
 - `events (name, start_date)` — the same event name + start date may exist only once.
+- `countries.name` — one country per name.
+- `regions (country_id, name)` — one region per name within a country.
+- `persons (country_id, nickname)` — one person per nickname within a country.
+- `persons.user_id` — a user may be linked to at most one person.
+- `event_owners` — partial unique indexes on `(event_id, user_id)` and
+  `(event_id, person_id)` prevent duplicate owners.
 
 ## Seed data
 
-Applied by [`migrations/004_seed_mvp.sql`](migrations/004_seed_mvp.sql):
+Applied by [`migrations/004_seed_mvp.sql`](migrations/004_seed_mvp.sql) and
+[`migrations/006_seed_version02.sql`](migrations/006_seed_version02.sql):
 
-- Users: `admin@gmail.com` / `1234` (Admin, admin), `user@gmail.com` / `4321`
-  (User, simple user). Passwords are precomputed scrypt digests; the app
-  compares logins with the same salt and parameters.
-- Events: the 17 normalized 2026–2027 events
-  ([wiki source](../../Design/wiki/sources/hardcoded-events.md)). Unresolved
-  source values are resolved for the seed and noted in SQL comments
-  (Festival Cultural → `region`, kids camp venue → Moscow Region,
-  Jogos Mundiais → month-wide August 2027, place `TBD`).
+- Users: `superadmin@gmail.com` / `1234` (Super Admin, super admin),
+  `admin@gmail.com` / `1234` (Admin, administrator), `user@gmail.com` / `4321`
+  (User, default). Passwords are precomputed scrypt digests; the app compares
+  logins with the same salt and parameters.
+- Countries: Russia, Luxembourg, Brazil.
+- Regions: Samara, Moscow Region, Saint Petersburg, Voronezh, Yekaterinburg,
+  Moscow (Russia); Rio de Janeiro (Brazil).
+- Events: the 17 normalized 2026–2027 events re-pointed to country/region
+  (Jogos Mundiais keeps NULL country/region — venue TBD), all `published`,
+  `created_by` = super admin, super admin added as owner of each.
+- Persons: none seeded (created via the moderation page).
 
-Re-running `npm run db:migrate` is safe: both inserts use `ON CONFLICT DO
-NOTHING`.
+Re-running `npm run db:migrate` is safe: all inserts use `ON CONFLICT DO
+NOTHING` and the role/event updates are guarded.
 
 ## Views
 

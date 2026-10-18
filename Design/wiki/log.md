@@ -44,3 +44,30 @@ grep "^## \[" log.md | tail -5
   given a wiki page.
 - Moved all seven files from `Design/Increment/` to `Design/Archive/`;
   `Design/Increment/` now holds only its `README.md`.
+
+## [2026-10-18] merge | Design increment batch — version0.2 (rights, admin, moderation, event CRUD)
+
+- Reviewed seven version0.2 documents in `Design/Increment/` (`version0.2.md`,
+  `adminpage.md`, `levelofrights.md`, `moderationpage.md`,
+  `usersandperson.md`, updated `calendar.md` and `navigationpanel.md`);
+  raised and resolved open questions with the team (role mapping, event
+  country/region/status/owners, person shape, ban semantics, super-admin
+  guarantee, moderation page scope, seed data).
+- Created source pages: [[sources/version0-2]], [[sources/admin-panel]],
+  [[sources/rights-levels]], [[sources/moderation-page]],
+  [[sources/users-and-persons]]; updated [[sources/calendar]] and
+  [[sources/navigation-panel]].
+- Created concept page [[concepts/rights-model]]; updated
+  [[concepts/domain-model]] and [[concepts/calendar-spec]].
+- Updated [[overview]], [[entities/frontend]], [[entities/backend]],
+  [[entities/database]]; refreshed [[index]].
+- Decisions recorded: roles `default | moderator | administrator | super admin`
+  (MVP roles mapped, one super admin seeded); event place → country+region,
+  status draft/published/deleted, created_by, polymorphic owner list; person =
+  nickname + country with optional user link; banned users cannot log in;
+  at least one super admin required at startup (fatal + exit); all data public
+  for now; moderation page split into 3 tabs.
+- Implemented in code alongside the merge (plan/tasks in
+  [`Plans/version0.2/`](../../Plans/version0.2/README.md)); 44 backend +
+  29 frontend tests passing; live at http://localhost:5173.
+- Archived the seven merged files to `Design/Archive/`.

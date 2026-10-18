@@ -9,11 +9,14 @@ vi.mock('../api/client', () => ({
     id: 1,
     email: 'admin@gmail.com',
     name: 'Admin',
-    role: 'admin',
+    role: 'administrator',
+    isBanned: false,
   }),
   login: vi.fn(),
   fetchEvents: vi.fn(),
   fetchEvent: vi.fn(),
+  fetchCountries: vi.fn().mockResolvedValue([]),
+  fetchRegions: vi.fn().mockResolvedValue([]),
 }))
 
 describe('Navigation panel', () => {
@@ -58,5 +61,39 @@ describe('Navigation panel', () => {
 
     fireEvent.click(screen.getByText('Выйти'))
     expect(localStorage.getItem('abadaglobal.token')).toBeNull()
+  })
+
+  it('shows moderation and administration buttons for an administrator', async () => {
+    const { fetchMe } = await import('../api/client')
+    vi.mocked(fetchMe).mockResolvedValue({
+      id: 1,
+      email: 'admin@gmail.com',
+      name: 'Admin',
+      role: 'administrator',
+      isBanned: false,
+    })
+
+    renderWithProviders(<NavPanel />, { initialEntries: ['/calendar'], token: 'tok' })
+    await flushAuth()
+
+    expect(screen.getByText('Модерация')).toBeInTheDocument()
+    expect(screen.getByText('Администрирование')).toBeInTheDocument()
+  })
+
+  it('hides moderation and administration buttons for a default user', async () => {
+    const { fetchMe } = await import('../api/client')
+    vi.mocked(fetchMe).mockResolvedValue({
+      id: 3,
+      email: 'user@gmail.com',
+      name: 'User',
+      role: 'default',
+      isBanned: false,
+    })
+
+    renderWithProviders(<NavPanel />, { initialEntries: ['/calendar'], token: 'tok' })
+    await flushAuth()
+
+    expect(screen.queryByText('Модерация')).not.toBeInTheDocument()
+    expect(screen.queryByText('Администрирование')).not.toBeInTheDocument()
   })
 })

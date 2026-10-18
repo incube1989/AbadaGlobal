@@ -20,6 +20,12 @@ interface AuthContextValue {
   token: string | null
   login: (credentials: LoginRequest) => Promise<void>
   logout: () => void
+  /** True when the user may access the moderation page (moderator+). */
+  canModerate: boolean
+  /** True when the user may access the administration page (administrator+). */
+  canAdminister: boolean
+  /** True when the user is a super admin. */
+  isSuperAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -72,9 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anon')
   }, [])
 
+  const canModerate =
+    user?.role === 'moderator' ||
+    user?.role === 'administrator' ||
+    user?.role === 'super admin'
+  const canAdminister =
+    user?.role === 'administrator' || user?.role === 'super admin'
+  const isSuperAdmin = user?.role === 'super admin'
+
   const value = useMemo(
-    () => ({ status, user, token, login, logout }),
-    [status, user, token, login, logout],
+    () => ({ status, user, token, login, logout, canModerate, canAdminister, isSuperAdmin }),
+    [status, user, token, login, logout, canModerate, canAdminister, isSuperAdmin],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

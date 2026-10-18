@@ -1,11 +1,7 @@
-For desktop it always on the left, for mobile it hidden under "burger" button
+Navigation panel: extra 2 buttons "moderation" and "administration"
 
-Navigation button:
-- main page
-- calendar
-- data base
-- profile
-- settings
-- log out
+Those buttons are only shown to user with corresponding rights.
 
-After clicking on button user is redirected to corresponding page. For mvp some pages may under construction. Some pages he open may restricted for him.
+Moderation buttons leads to moderation page
+
+Administrator button leads to admin page
