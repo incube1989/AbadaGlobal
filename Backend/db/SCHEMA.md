@@ -47,8 +47,24 @@ erDiagram
         text nickname "Apelido"
         int country_id FK "Country"
         int user_id FK "Optional unique user link"
+        text corda "Capoeira belt (Portuguese)"
         boolean is_deleted "Soft-delete flag"
         timestamptz created_at "Creation time"
+    }
+    PERSON_CURATORS {
+        serial id PK "Surrogate key"
+        int person_id FK "The person with curators"
+        int curator_id FK "A curator person"
+    }
+    PERSON_HEADS {
+        serial id PK "Surrogate key"
+        int person_id FK "The person heading regions"
+        int region_id FK "A headed region"
+    }
+    EVENT_GUESTS {
+        serial id PK "Surrogate key"
+        int event_id FK "The event with guests"
+        int person_id FK "A guest person"
     }
     EVENTS {
         serial id PK "Surrogate key"
@@ -75,6 +91,12 @@ erDiagram
     REGIONS ||--o{ EVENTS : region_id
     USERS ||--o{ EVENTS : created_by
     EVENTS ||--o{ EVENT_OWNERS : event_id
+    PERSONS ||--o{ PERSON_CURATORS : person_id
+    PERSONS ||--o{ PERSON_CURATORS : curator_id
+    PERSONS ||--o{ PERSON_HEADS : person_id
+    REGIONS ||--o{ PERSON_HEADS : region_id
+    EVENTS ||--o{ EVENT_GUESTS : event_id
+    PERSONS ||--o{ EVENT_GUESTS : person_id
 ```
 
 ## Tables
@@ -122,7 +144,9 @@ Regions within a country, managed on the moderation page; referenced by events.
 
 Real people in the school, identified by country + nickname (apelido). A
 person may be linked to at most one user; a person can exist without a user
-and vice versa.
+and vice versa. Since version 0.3 a person may carry a capoeira belt
+(`corda`); the title is derived from it and never stored. Curators and headed
+regions live in `person_curators` / `person_heads`.
 
 | Column | Type | Nullable | Default | Comment |
 | ------ | ---- | -------- | ------- | ------- |
@@ -130,6 +154,7 @@ and vice versa.
 | `nickname` | `text` | no | — | Nickname (apelido) of the person. |
 | `country_id` | `integer` | no | — | Country of the person (FK → `countries.id`). |
 | `user_id` | `integer` | yes | — | Optional link to the user account (FK → `users.id`, unique). |
+| `corda` | `text` | yes | — | Capoeira belt (Portuguese, CHECK constraint). Title is derived, never stored. |
 | `is_deleted` | `boolean` | no | `false` | Soft-delete flag (mark as deleted). |
 | `created_at` | `timestamptz` | no | `now()` | Creation time. |
 
@@ -150,6 +175,39 @@ events carry a lifecycle status and a creator, and can have an owner list.
 | `scope` | `text` | no | — | `world`, `Russia`, `region`, `local` (CHECK constraint). Drives the calendar panel color. |
 | `status` | `text` | no | `published` | `draft`, `published`, or `deleted` (CHECK constraint; deleted = soft delete). |
 | `created_by` | `integer` | no | — | Creating user (FK → `users.id`). |
+
+### `person_curators`
+
+Curator list of a person (version 0.3). A person has no curators by default
+(NULL in the API when the list is empty).
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `person_id` | `integer` | no | — | The person who has curators (FK → `persons.id`, cascade delete). |
+| `curator_id` | `integer` | no | — | A curator person of the person (FK → `persons.id`, cascade delete). |
+
+### `person_heads`
+
+Regions headed by a person (version 0.3). A person heads no regions by default
+(NULL in the API when the list is empty).
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `person_id` | `integer` | no | — | The person who heads a region (FK → `persons.id`, cascade delete). |
+| `region_id` | `integer` | no | — | A region headed by the person (FK → `regions.id`, cascade delete). |
+
+### `event_guests`
+
+Guest list of an event (version 0.3), shown at the top of the event
+information in the event pop-up and on the event page.
+
+| Column | Type | Nullable | Default | Comment |
+| ------ | ---- | -------- | ------- | ------- |
+| `id` | `integer` | no | `nextval(...)` | Surrogate primary key. |
+| `event_id` | `integer` | no | — | The event with guests (FK → `events.id`, cascade delete). |
+| `person_id` | `integer` | no | — | A guest person of the event (FK → `persons.id`, cascade delete). |
 
 ### `event_owners`
 
@@ -173,6 +231,9 @@ Unique constraints:
 - `persons.user_id` — a user may be linked to at most one person.
 - `event_owners` — partial unique indexes on `(event_id, user_id)` and
   `(event_id, person_id)` prevent duplicate owners.
+- `person_curators (person_id, curator_id)` — one curator per person.
+- `person_heads (person_id, region_id)` — one region per person.
+- `event_guests (event_id, person_id)` — one guest entry per person.
 
 ## Seed data
 

@@ -36,6 +36,8 @@ const sampleEvents: Event[] = [
     status: 'published',
     createdBy: 1,
     owners: [{ userId: 1 }],
+    ownerList: [] as const,
+    guests: [{ id: 5, nickname: 'Falcão', corda: 'azul', title: 'Graduado' }],
   },
   {
     id: 2,
@@ -49,6 +51,8 @@ const sampleEvents: Event[] = [
     status: 'published',
     createdBy: 1,
     owners: [{ userId: 1 }],
+    ownerList: [] as const,
+    guests: [],
   },
 ]
 
@@ -65,7 +69,8 @@ describe('Calendar page', () => {
       token: 'valid-token',
     })
 
-    expect(await screen.findByText('Zumbimba')).toBeInTheDocument()
+    // Days view is the default; a multi-week event renders once per week row.
+    expect((await screen.findAllByText('Zumbimba')).length).toBeGreaterThan(0)
     expect(screen.getByText('Competition')).toBeInTheDocument()
     expect(fetchEvents).toHaveBeenCalled()
   })
@@ -76,7 +81,7 @@ describe('Calendar page', () => {
       token: 'valid-token',
     })
 
-    expect(await screen.findByText('Zumbimba')).toBeInTheDocument()
+    expect((await screen.findAllByText('Zumbimba')).length).toBeGreaterThan(0)
     expect(screen.getByText('Создать событие')).toBeInTheDocument()
   })
 
@@ -86,24 +91,40 @@ describe('Calendar page', () => {
       token: 'valid-token',
     })
 
-    await screen.findByText('Zumbimba')
+    await screen.findAllByText('Zumbimba')
 
     fireEvent.click(screen.getByLabelText('Мир'))
     // Only the world-scoped event remains visible.
-    expect(screen.getByText('Zumbimba')).toBeInTheDocument()
+    expect(screen.getAllByText('Zumbimba').length).toBeGreaterThan(0)
     expect(screen.queryByText('Competition')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Мир'))
     expect(screen.getByText('Competition')).toBeInTheDocument()
   })
 
-  it('switches to the days view', async () => {
+  it('shows the guest list at the top of the event popup', async () => {
+    renderWithProviders(<App />, {
+      initialEntries: ['/calendar'],
+      token: 'valid-token',
+    })
+
+    fireEvent.click((await screen.findAllByText('Zumbimba'))[0])
+    expect(await screen.findByText(/Гости:/)).toBeInTheDocument()
+    // The guest chip carries the derived Portuguese title before the name.
+    expect(screen.getByText('Graduado')).toBeInTheDocument()
+    expect(screen.getByText('Falcão')).toBeInTheDocument()
+  })
+
+  it('shows the days view by default and keeps it when selected', async () => {
     const { container } = renderWithProviders(<App />, {
       initialEntries: ['/calendar'],
       token: 'valid-token',
     })
 
-    await screen.findByText('Zumbimba')
+    await screen.findAllByText('Zumbimba')
+
+    // Days is the default view.
+    expect(container.querySelector('.day-grid')).not.toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Дни' }))
     expect(container.querySelector('.day-grid')).not.toBeNull()

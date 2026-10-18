@@ -32,8 +32,8 @@ describe('OwnerSelect', () => {
     localStorage.clear()
     vi.mocked(fetchMe).mockResolvedValue(user)
     vi.mocked(fetchOwnerCandidates).mockResolvedValue([
-      { type: 'person', id: 5, label: 'Falcão' },
-      { type: 'person', id: 6, label: 'Curinga' },
+      { type: 'person', id: 5, label: 'Falcão', corda: null, title: null },
+      { type: 'person', id: 6, label: 'Curinga', corda: null, title: null },
     ])
   })
 

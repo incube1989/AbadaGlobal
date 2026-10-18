@@ -31,6 +31,7 @@ relevant pages.
 
 - [[sources/main|Main increment doc]] — vision, main features, MVP scope
 - [[sources/version0-2|version0.2 increment doc]] — next feature set (admin, event CRUD, rights)
+- [[sources/version0-3|version0.3 increment doc]] — corda belts & titles, person profile, event guests
 - [[sources/calendar|Calendar increment doc]] — calendar requirements + create/edit
 - [[sources/navigation-panel|Navigation panel increment doc]] — nav layout, buttons, role-gated links
 - [[sources/restricted-page|Restricted page increment doc]] — access-denied copy
@@ -43,4 +44,4 @@ relevant pages.
 
 ---
 
-*Last updated: 2026-10-18 (version0.2 design batch merged).*
+*Last updated: 2026-10-18 (version0.3 design batch merged).*

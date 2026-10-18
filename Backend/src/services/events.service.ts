@@ -1,9 +1,12 @@
 import { pool } from '../db/pool.js'
+import type { Corda, EventGuest } from '../models/person.js'
+import { CORDA_TITLES } from '../models/person.js'
 import type { UserRole } from '../models/user.js'
 import type {
   Event,
   EventInput,
   EventOwner,
+  EventOwnerInfo,
   EventScope,
   EventType,
 } from '../models/event.js'
@@ -29,6 +32,75 @@ const EVENT_COLUMNS = `e.id, e.name,
 
 /** Roles that may manage any event (edit / soft-delete). */
 const MANAGER_ROLES: readonly UserRole[] = ['moderator', 'administrator', 'super admin']
+
+/** Load the guest list of an event (persons). */
+async function loadGuests(eventId: number): Promise<EventGuest[]> {
+  const { rows } = await pool.query<{
+    id: number
+    nickname: string
+    corda: EventGuest['corda']
+  }>(
+    `SELECT p.id, p.nickname, p.corda
+       FROM event_guests g
+       JOIN persons p ON p.id = g.person_id
+      WHERE g.event_id = $1
+      ORDER BY p.nickname`,
+    [eventId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    nickname: r.nickname,
+    corda: r.corda,
+    title: r.corda ? (CORDA_TITLES[r.corda] ?? null) : null,
+  }))
+}
+
+/** Replace the guest list of an event (delete all, insert the given ids). */
+async function replaceGuests(
+  client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> },
+  eventId: number,
+  guests: number[],
+): Promise<void> {
+  await client.query('DELETE FROM event_guests WHERE event_id = $1', [eventId])
+  for (const personId of new Set(guests)) {
+    if (Number.isInteger(personId) && personId >= 1) {
+      await client.query(
+        'INSERT INTO event_guests (event_id, person_id) VALUES ($1, $2)',
+        [eventId, personId],
+      )
+    }
+  }
+}
+
+/**
+ * Load the resolved owner list of an event (names + corda/title for display,
+ * shown at the top of the event page). Owners are persons in practice; user
+ * owners fall back to the user name.
+ */
+async function loadOwnerList(eventId: number): Promise<EventOwnerInfo[]> {
+  const { rows } = await pool.query<{
+    userId: number | null
+    personId: number | null
+    nickname: string | null
+    corda: Corda | null
+  }>(
+    `SELECT o.user_id AS "userId", o.person_id AS "personId",
+            COALESCE(u.name, p.nickname) AS "nickname",
+            p.corda
+       FROM event_owners o
+       LEFT JOIN users u ON u.id = o.user_id
+       LEFT JOIN persons p ON p.id = o.person_id
+      WHERE o.event_id = $1
+      ORDER BY o.id`,
+    [eventId],
+  )
+  return rows.map((r) => ({
+    ...(r.userId !== null ? { userId: r.userId } : { personId: r.personId! }),
+    nickname: r.nickname ?? '',
+    corda: r.corda ?? null,
+    title: r.corda ? (CORDA_TITLES[r.corda] ?? null) : null,
+  }))
+}
 
 /** Load the owner list of an event. */
 async function loadOwners(eventId: number): Promise<EventOwner[]> {
@@ -95,7 +167,12 @@ async function getEventRow(id: number): Promise<Event | null> {
   if (!rows[0]) {
     return null
   }
-  return { ...rows[0], owners: await loadOwners(id) }
+  return {
+    ...rows[0],
+    owners: await loadOwners(id),
+    ownerList: await loadOwnerList(id),
+    guests: await loadGuests(id),
+  }
 }
 
 /**
@@ -137,10 +214,15 @@ export async function listEvents(
       ORDER BY e.start_date, e.id`,
     params,
   )
-  const withOwners = await Promise.all(
-    rows.map(async (row) => ({ ...row, owners: await loadOwners(row.id) })),
+  const withRelations = await Promise.all(
+    rows.map(async (row) => ({
+      ...row,
+      owners: await loadOwners(row.id),
+      ownerList: await loadOwnerList(row.id),
+      guests: await loadGuests(row.id),
+    })),
   )
-  return withOwners
+  return withRelations
 }
 
 /** Single event by id with the same visibility rules; null when not visible. */
@@ -204,8 +286,16 @@ export async function createEvent(
         )
       }
     }
+    if (input.guests) {
+      await replaceGuests(client, event.id, input.guests)
+    }
     await client.query('COMMIT')
-    return { ...event, owners: await loadOwners(event.id) }
+    return {
+      ...event,
+      owners: await loadOwners(event.id),
+      ownerList: await loadOwnerList(event.id),
+      guests: await loadGuests(event.id),
+    }
   } catch (err) {
     await client.query('ROLLBACK')
     throw err
@@ -260,8 +350,16 @@ export async function updateEvent(
     if (input.owners) {
       await replaceOwners(client, id, input.owners)
     }
+    if (input.guests !== undefined) {
+      await replaceGuests(client, id, input.guests)
+    }
     await client.query('COMMIT')
-    return { ...event, owners: await loadOwners(id) }
+    return {
+      ...event,
+      owners: await loadOwners(id),
+      ownerList: await loadOwnerList(id),
+      guests: await loadGuests(id),
+    }
   } catch (err) {
     await client.query('ROLLBACK')
     throw err

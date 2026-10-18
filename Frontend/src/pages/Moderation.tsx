@@ -14,9 +14,20 @@ import {
   updatePerson,
   updateRegion,
 } from '../api/client'
-import type { Country, Person, Region } from '../api/types'
+import {
+  CORDAS,
+  type Corda,
+  type Country,
+  type EventOwner,
+  type Person,
+  type PersonInput,
+  type Region,
+} from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import OwnerSelect from '../components/OwnerSelect'
+import PersonLabel from '../components/PersonLabel'
 import { useI18n } from '../i18n/I18nContext'
+import { CORDA_LABELS } from '../utils/corda'
 
 type Tab = 'countries' | 'regions' | 'persons'
 
@@ -289,22 +300,84 @@ function RegionsTab() {
   )
 }
 
+/** Corda dropdown shared by the person add/edit forms. */
+function CordaSelect({
+  value,
+  onChange,
+  allLabel,
+}: {
+  value: string
+  onChange: (value: string) => void
+  allLabel: string
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{allLabel}</option>
+      {CORDAS.map((c) => (
+        <option key={c} value={c}>
+          {CORDA_LABELS[c]}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Multi-select of regions (the "head" list of a person). */
+function RegionMultiSelect({
+  regions,
+  value,
+  onChange,
+  label,
+}: {
+  regions: Region[]
+  value: number[]
+  onChange: (ids: number[]) => void
+  label: string
+}) {
+  return (
+    <select
+      multiple
+      size={4}
+      aria-label={label}
+      value={value.map(String)}
+      onChange={(e) => {
+        const ids = Array.from(e.target.selectedOptions).map((o) => Number(o.value))
+        onChange(ids)
+      }}
+    >
+      {regions.map((r) => (
+        <option key={r.id} value={r.id}>
+          {r.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function PersonsTab() {
   const { t } = useI18n()
   const token = useToken()
   const [countries, setCountries] = useState<Country[]>([])
+  const [regions, setRegions] = useState<Region[]>([])
   const [items, setItems] = useState<Person[]>([])
   const [countryId, setCountryId] = useState('')
   const [search, setSearch] = useState('')
   const [nickname, setNickname] = useState('')
+  const [corda, setCorda] = useState('')
   const [editing, setEditing] = useState<Person | null>(null)
   const [editNickname, setEditNickname] = useState('')
   const [editUserId, setEditUserId] = useState('')
+  const [editCorda, setEditCorda] = useState('')
+  const [editCurator, setEditCurator] = useState<EventOwner[]>([])
+  const [editHead, setEditHead] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchCountries(undefined, token)
-      .then(setCountries)
+    Promise.all([fetchCountries(undefined, token), fetchRegions(undefined, undefined, token)])
+      .then(([c, r]) => {
+        setCountries(c)
+        setRegions(r)
+      })
       .catch(() => setError(t('common.error')))
   }, [token, t])
 
@@ -326,8 +399,14 @@ function PersonsTab() {
     e.preventDefault()
     if (!nickname.trim() || !countryId) return
     try {
-      await createPerson(nickname.trim(), Number(countryId), token)
+      await createPerson(
+        nickname.trim(),
+        Number(countryId),
+        token,
+        corda ? (corda as Corda) : null,
+      )
       setNickname('')
+      setCorda('')
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.error'))
@@ -339,11 +418,15 @@ function PersonsTab() {
     if (!editing || !editNickname.trim()) return
     try {
       const userId = editUserId.trim() === '' ? null : Number(editUserId)
-      await updatePerson(
-        editing.id,
-        { nickname: editNickname.trim(), countryId: editing.countryId, userId },
-        token,
-      )
+      const input: PersonInput = {
+        nickname: editNickname.trim(),
+        countryId: editing.countryId,
+        userId,
+        corda: editCorda ? (editCorda as Corda) : null,
+        curator: editCurator.map((c) => c.personId!),
+        head: editHead,
+      }
+      await updatePerson(editing.id, input, token)
       setEditing(null)
       await load()
     } catch (err) {
@@ -358,6 +441,15 @@ function PersonsTab() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.error'))
     }
+  }
+
+  const startEdit = (p: Person) => {
+    setEditing(p)
+    setEditNickname(p.nickname)
+    setEditUserId(p.userId !== null ? String(p.userId) : '')
+    setEditCorda(p.corda ?? '')
+    setEditCurator((p.curator ?? []).map((id) => ({ personId: id })))
+    setEditHead(p.head ?? [])
   }
 
   return (
@@ -384,6 +476,7 @@ function PersonsTab() {
           onChange={(e) => setNickname(e.target.value)}
           placeholder={t('moderation.personNickname')}
         />
+        <CordaSelect value={corda} onChange={setCorda} allLabel={t('moderation.cordaNone')} />
         <button type="submit" disabled={!countryId}>
           {t('moderation.add')}
         </button>
@@ -393,38 +486,55 @@ function PersonsTab() {
         {items.map((p) => (
           <li key={p.id}>
             {editing?.id === p.id ? (
-              <form className="inline-form" onSubmit={handleSave}>
-                <input
-                  value={editNickname}
-                  onChange={(e) => setEditNickname(e.target.value)}
-                />
-                <input
-                  type="number"
-                  placeholder={t('moderation.userId')}
-                  value={editUserId}
-                  onChange={(e) => setEditUserId(e.target.value)}
-                />
-                <button type="submit">{t('moderation.save')}</button>
-                <button type="button" onClick={() => setEditing(null)}>
-                  {t('moderation.cancel')}
-                </button>
+              <form className="person-edit" onSubmit={handleSave}>
+                <div className="inline-form">
+                  <input
+                    value={editNickname}
+                    onChange={(e) => setEditNickname(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder={t('moderation.userId')}
+                    value={editUserId}
+                    onChange={(e) => setEditUserId(e.target.value)}
+                  />
+                  <CordaSelect
+                    value={editCorda}
+                    onChange={setEditCorda}
+                    allLabel={t('moderation.cordaNone')}
+                  />
+                  <button type="submit">{t('moderation.save')}</button>
+                  <button type="button" onClick={() => setEditing(null)}>
+                    {t('moderation.cancel')}
+                  </button>
+                </div>
+                <div className="person-edit-lists">
+                  <label>
+                    <span>{t('moderation.curator')}</span>
+                    <OwnerSelect owners={editCurator} onOwnersChange={setEditCurator} />
+                  </label>
+                  <label>
+                    <span>{t('moderation.head')}</span>
+                    <RegionMultiSelect
+                      regions={regions}
+                      value={editHead}
+                      onChange={setEditHead}
+                      label={t('moderation.head')}
+                    />
+                  </label>
+                </div>
               </form>
             ) : (
               <>
-                <span>
-                  {p.nickname}
+                <span className="person-item">
+                  <PersonLabel
+                    person={{ corda: p.corda, title: p.title, nickname: p.nickname }}
+                  />
                   {p.userId !== null && (
                     <span className="badge">{t('moderation.linked')} #{p.userId}</span>
                   )}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(p)
-                    setEditNickname(p.nickname)
-                    setEditUserId(p.userId !== null ? String(p.userId) : '')
-                  }}
-                >
+                <button type="button" onClick={() => startEdit(p)}>
                   {t('moderation.edit')}
                 </button>
                 <button type="button" onClick={() => handleDelete(p.id)}>

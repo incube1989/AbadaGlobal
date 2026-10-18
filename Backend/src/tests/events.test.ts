@@ -34,6 +34,8 @@ const sampleEvents: Event[] = [
     status: 'published',
     createdBy: 1,
     owners: [{ userId: 1 }],
+    ownerList: [],
+    guests: [],
   },
   {
     id: 2,
@@ -47,7 +49,16 @@ const sampleEvents: Event[] = [
     status: 'published',
     createdBy: 1,
     owners: [{ userId: 1 }],
+    ownerList: [],
+    guests: [],
   },
+]
+
+/** Row the mocked guest query returns (corda azul -> Graduado). */
+const GUEST_ROW = { id: 5, nickname: 'Falcão', corda: 'azul' }
+
+const sampleGuests: Event['guests'] = [
+  { id: 5, nickname: 'Falcão', corda: 'azul', title: 'Graduado' },
 ]
 
 const token = issueToken(1)
@@ -74,7 +85,10 @@ function defaultDispatch(events: Event[] = sampleEvents) {
       return { rows: events }
     }
     if (sql.includes('FROM event_owners')) {
-      return { rows: [{ userId: 1, personId: null }] }
+      return { rows: [{ userId: 1, personId: null, nickname: 'Admin', corda: null }] }
+    }
+    if (sql.includes('FROM event_guests')) {
+      return { rows: [GUEST_ROW] }
     }
     if (sql.includes('INSERT INTO events')) {
       return { rows: [events[0]] }
@@ -83,6 +97,9 @@ function defaultDispatch(events: Event[] = sampleEvents) {
       return { rows: [events[0]] }
     }
     if (sql.includes('DELETE FROM event_owners')) {
+      return { rows: [] }
+    }
+    if (sql.includes('DELETE FROM event_guests')) {
       return { rows: [] }
     }
     return { rows: [] }
@@ -108,6 +125,11 @@ describe('GET /api/events', () => {
     expect(res.body).toHaveLength(2)
     expect(res.body[0]).toMatchObject({ name: 'Zumbimba', scope: 'world', status: 'published' })
     expect(res.body[0].owners).toEqual([{ userId: 1 }])
+    // Resolved owners for the event page top: name + corda/title.
+    expect(res.body[0].ownerList).toEqual([
+      { userId: 1, nickname: 'Admin', corda: null, title: null },
+    ])
+    expect(res.body[0].guests).toEqual(sampleGuests)
   })
 
   it('passes scope and type filters to the query', async () => {
@@ -195,6 +217,49 @@ describe('POST /api/events', () => {
     expect(res.body).toMatchObject({ name: 'Zumbimba' })
   })
 
+  it('persists guests when creating an event', async () => {
+    const client = { query: vi.fn(), release: vi.fn() }
+    vi.mocked(pool.connect).mockResolvedValue(client as never)
+    vi.mocked(pool.query).mockImplementation(
+      async (sql: string): Promise<QueryResult> => {
+        if (sql.includes('FROM users')) {
+          return { rows: [viewerRow] }
+        }
+        if (sql.includes('INSERT INTO events')) {
+          return { rows: [sampleEvents[0]] }
+        }
+        return { rows: [] }
+      },
+    )
+    vi.mocked(client.query).mockImplementation(
+      async (sql: string): Promise<QueryResult> => {
+        if (sql.includes('INSERT INTO events')) {
+          return { rows: [sampleEvents[0]] }
+        }
+        return { rows: [] }
+      },
+    )
+
+    const res = await request(app)
+      .post('/api/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'New event',
+        startDate: '2028-01-10',
+        endDate: '2028-01-12',
+        countryId: 1,
+        regionId: 2,
+        type: 'camp',
+        scope: 'region',
+        guests: [5, 6],
+      })
+    expect(res.status).toBe(201)
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO event_guests'),
+      expect.anything(),
+    )
+  })
+
   it('rejects invalid event data with 400', async () => {
     mockDb(defaultDispatch())
     const res = await request(app)
@@ -227,6 +292,52 @@ describe('PUT /api/events/:id', () => {
       })
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({ name: 'Zumbimba' })
+  })
+
+  it('replaces guests when updating an event', async () => {
+    const client = { query: vi.fn(), release: vi.fn() }
+    vi.mocked(pool.connect).mockResolvedValue(client as never)
+    vi.mocked(pool.query).mockImplementation(
+      async (sql: string): Promise<QueryResult> => {
+        if (sql.includes('FROM users')) {
+          return { rows: [viewerRow] }
+        }
+        if (sql.includes('FROM events')) {
+          return { rows: [sampleEvents[0]] }
+        }
+        if (sql.includes('FROM event_guests')) {
+          return { rows: [GUEST_ROW] }
+        }
+        return { rows: [] }
+      },
+    )
+    vi.mocked(client.query).mockImplementation(
+      async (sql: string): Promise<QueryResult> =>
+        sql.includes('UPDATE events') ? { rows: [sampleEvents[0]] } : { rows: [] },
+    )
+
+    const res = await request(app)
+      .put('/api/events/1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Updated event',
+        startDate: '2028-02-01',
+        endDate: '2028-02-03',
+        countryId: 1,
+        regionId: null,
+        type: 'festival',
+        scope: 'local',
+        guests: [9],
+      })
+    expect(res.status).toBe(200)
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM event_guests'),
+      expect.anything(),
+    )
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO event_guests'),
+      expect.anything(),
+    )
   })
 
   it('responds 404 for an unknown event', async () => {

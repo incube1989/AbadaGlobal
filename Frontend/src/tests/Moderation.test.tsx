@@ -39,7 +39,17 @@ const countries = [
 ]
 const regions = [{ id: 1, name: 'Samara', countryId: 1, isDeleted: false }]
 const persons = [
-  { id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false },
+  {
+    id: 1,
+    nickname: 'Falcão',
+    countryId: 1,
+    userId: null,
+    isDeleted: false,
+    corda: null,
+    title: null,
+    curator: null,
+    head: null,
+  },
 ]
 
 describe('Moderation page', () => {

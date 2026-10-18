@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
-import type { PersonInput } from '../models/person.js'
+import type { Corda, PersonInput } from '../models/person.js'
+import { CORDAS } from '../models/person.js'
 import {
   createPerson,
   deletePerson,
@@ -11,6 +12,28 @@ import {
 function parseId(raw: string | string[]): number | null {
   const id = Number(raw)
   return Number.isInteger(id) && id >= 1 ? id : null
+}
+
+/** Parse a nullable list of positive integer ids; null = clear, undefined = untouched. */
+function parseIdList(raw: unknown): number[] | null | undefined {
+  if (raw === undefined) {
+    return undefined
+  }
+  if (raw === null) {
+    return null
+  }
+  if (!Array.isArray(raw)) {
+    return undefined
+  }
+  const ids: number[] = []
+  for (const v of raw) {
+    const id = Number(v)
+    if (!Number.isInteger(id) || id < 1) {
+      return undefined
+    }
+    ids.push(id)
+  }
+  return ids
 }
 
 function parseInput(body: unknown): PersonInput | null {
@@ -34,7 +57,19 @@ function parseInput(body: unknown): PersonInput | null {
     }
     userId = uid
   }
-  return { nickname: nickname.trim(), countryId: cid, userId }
+  // corda: must be a known Portuguese belt value, null/'' clears it.
+  let corda: Corda | null | undefined
+  if (b.corda !== undefined && b.corda !== null && b.corda !== '') {
+    if (typeof b.corda !== 'string' || !CORDAS.includes(b.corda as Corda)) {
+      return null
+    }
+    corda = b.corda as Corda
+  } else if (b.corda !== undefined) {
+    corda = null
+  }
+  const curator = parseIdList(b.curator)
+  const head = parseIdList(b.head)
+  return { nickname: nickname.trim(), countryId: cid, userId, corda, curator, head }
 }
 
 export async function listPersonsHandler(req: Request, res: Response): Promise<void> {

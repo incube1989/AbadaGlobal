@@ -768,9 +768,40 @@ components:
         personId:
           type: integer
           nullable: true
+    EventOwnerInfo:
+      type: object
+      description: Resolved owner for display at the top of the event page
+      required: [nickname, corda, title]
+      properties:
+        userId:
+          type: integer
+          nullable: true
+        personId:
+          type: integer
+          nullable: true
+        nickname:
+          type: string
+          description: User name or person nickname
+        corda:
+          $ref: "#/components/schemas/Corda"
+        title:
+          $ref: "#/components/schemas/CordaTitle"
+    EventGuest:
+      type: object
+      description: A person on the guest list of an event (with its corda/title for display)
+      required: [id, nickname, corda, title]
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        corda:
+          $ref: "#/components/schemas/Corda"
+        title:
+          $ref: "#/components/schemas/CordaTitle"
     Event:
       type: object
-      required: [id, name, startDate, endDate, type, scope, status, createdBy, owners]
+      required: [id, name, startDate, endDate, type, scope, status, createdBy, owners, ownerList, guests]
       properties:
         id:
           type: integer
@@ -800,6 +831,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EventOwner"
+        ownerList:
+          type: array
+          description: Resolved owners as they appear at the top of the event page
+          items:
+            $ref: "#/components/schemas/EventOwnerInfo"
+        guests:
+          type: array
+          description: Guest people as they appear in the event pop-up and event page
+          items:
+            $ref: "#/components/schemas/EventGuest"
     EventInput:
       type: object
       required: [name, startDate, endDate, type, scope]
@@ -829,6 +870,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EventOwner"
+        guests:
+          type: array
+          description: Guest person ids; undefined leaves the list unchanged in update mode
+          items:
+            type: integer
     Country:
       type: object
       required: [id, name, isDeleted]
@@ -867,9 +913,18 @@ components:
           minLength: 1
         countryId:
           type: integer
+    Corda:
+      type: string
+      description: Capoeira belt. Portuguese by design — never translate
+      enum: [crua, crua-amarela, amarela, amarela-laranja, laranja, laranja-azul, azul, azul-verde, verde, verde-roxa, roxa, roxa-marrom, marrom, marrom-vermelha, vermelha-branco, branco]
+    CordaTitle:
+      type: string
+      description: Title granted by a corda. Portuguese by design — never translate
+      nullable: true
+      enum: [Graduado, Instrutor, Professor, Mestrando, Mestre, Grão Mestre, null]
     Person:
       type: object
-      required: [id, nickname, countryId, isDeleted]
+      required: [id, nickname, countryId, isDeleted, corda, title, curator, head]
       properties:
         id:
           type: integer
@@ -883,6 +938,24 @@ components:
           description: Linked user account, if any
         isDeleted:
           type: boolean
+        corda:
+          $ref: "#/components/schemas/Corda"
+        title:
+          $ref: "#/components/schemas/CordaTitle"
+          readOnly: true
+          description: Derived from corda; never set manually
+        curator:
+          type: array
+          nullable: true
+          description: Curator person ids; null when there are none
+          items:
+            type: integer
+        head:
+          type: array
+          nullable: true
+          description: Region ids headed by the person; null when there are none
+          items:
+            type: integer
     PersonInput:
       type: object
       required: [nickname, countryId]
@@ -896,9 +969,24 @@ components:
           type: integer
           nullable: true
           description: Set to link, null to unlink
+        corda:
+          $ref: "#/components/schemas/Corda"
+          description: Null clears the belt. Title is not part of the input — it is derived
+        curator:
+          type: array
+          nullable: true
+          description: Curator person ids (null clears, undefined leaves unchanged)
+          items:
+            type: integer
+        head:
+          type: array
+          nullable: true
+          description: Region ids (null clears, undefined leaves unchanged)
+          items:
+            type: integer
     OwnerCandidate:
       type: object
-      required: [type, id, label]
+      required: [type, id, label, corda, title]
       properties:
         type:
           type: string
@@ -908,6 +996,10 @@ components:
         label:
           type: string
           description: Display name; users include their email
+        corda:
+          $ref: "#/components/schemas/Corda"
+        title:
+          $ref: "#/components/schemas/CordaTitle"
     ChangeRoleRequest:
       type: object
       required: [role]

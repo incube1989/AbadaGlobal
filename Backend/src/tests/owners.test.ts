@@ -54,7 +54,9 @@ describe('GET /api/owner-candidates', () => {
       .get('/api/owner-candidates?search=fal')
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
-    expect(res.body).toEqual([{ type: 'person', id: 5, label: 'Falcão' }])
+    expect(res.body).toEqual([
+      { type: 'person', id: 5, label: 'Falcão', corda: null, title: null },
+    ])
     // No users query is performed (only persons are candidates).
     const sqlCalls = vi.mocked(pool.query).mock.calls.map((c) => String(c[0]))
     expect(sqlCalls.some((s) => s.includes('FROM users') && s.includes('ILIKE'))).toBe(false)
@@ -77,8 +79,8 @@ describe('GET /api/owner-candidates', () => {
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
     expect(res.body).toEqual([
-      { type: 'person', id: 1, label: 'Caverna' },
-      { type: 'person', id: 2, label: 'Curinga' },
+      { type: 'person', id: 1, label: 'Caverna', corda: null, title: null },
+      { type: 'person', id: 2, label: 'Curinga', corda: null, title: null },
     ])
     // The empty-search query must not contain a LIKE filter.
     expect(vi.mocked(pool.query)).toHaveBeenCalledWith(
@@ -98,10 +100,28 @@ describe('GET /api/owner-candidates', () => {
       .get('/api/owner-candidates?ids=person:5,user:1')
       .set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
-    expect(res.body).toEqual([{ type: 'person', id: 5, label: 'Falcão' }])
+    expect(res.body).toEqual([
+      { type: 'person', id: 5, label: 'Falcão', corda: null, title: null },
+    ])
     expect(vi.mocked(pool.query)).toHaveBeenCalledWith(
       expect.stringContaining('WHERE id = ANY($1)'),
       [[5]],
     )
+  })
+
+  it('derives the title from the corda of a candidate', async () => {
+    mockDb((sql) => {
+      if (sql.includes('FROM persons')) {
+        return { rows: [{ id: 7, nickname: 'Xuxa', corda: 'roxa' }] }
+      }
+      return { rows: [] }
+    })
+    const res = await request(app)
+      .get('/api/owner-candidates?search=xu')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([
+      { type: 'person', id: 7, label: 'Xuxa', corda: 'roxa', title: 'Instrutor' },
+    ])
   })
 })

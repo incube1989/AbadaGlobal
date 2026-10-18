@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, fetchCountries, fetchEvent, fetchRegions } from '../api/client'
 import type { Country, Event, Region, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import PersonLabel from '../components/PersonLabel'
 import { useI18n } from '../i18n/I18nContext'
 import { shortDate } from '../utils/date'
 
@@ -121,6 +122,31 @@ export default function EventPage() {
           <span className={`scope-bar ${SCOPE_CLASS[event.scope]}`} />
           {event.name}
         </h1>
+        {event.ownerList && event.ownerList.length > 0 && (
+          <div className="event-guests">
+            <span className="event-guests-label">{t('event.owners')}:</span>
+            {event.ownerList.map((o, i) =>
+              o.personId !== undefined ? (
+                <PersonLabel
+                  key={o.personId ?? i}
+                  person={{ corda: o.corda, title: o.title, nickname: o.nickname }}
+                />
+              ) : (
+                <span key={o.userId ?? i} className="person-label">
+                  {o.nickname}
+                </span>
+              ),
+            )}
+          </div>
+        )}
+        {event.guests && event.guests.length > 0 && (
+          <div className="event-guests">
+            <span className="event-guests-label">{t('event.guests')}:</span>
+            {event.guests.map((g) => (
+              <PersonLabel key={g.id} person={g} />
+            ))}
+          </div>
+        )}
         <dl className="event-facts">
           <dt>{t('event.startDate')}</dt>
           <dd>{shortDate(event.startDate, lang)}</dd>

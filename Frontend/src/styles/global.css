@@ -355,6 +355,27 @@ code {
   border-left-color: var(--scope-local) !important;
 }
 
+/* Fill the whole event panel/chip with the scope color, not just the left edge. */
+.event-panel.scope-world,
+.event-chip.scope-world {
+  background: rgba(192, 57, 43, 0.15);
+}
+
+.event-panel.scope-russia,
+.event-chip.scope-russia {
+  background: rgba(36, 86, 166, 0.15);
+}
+
+.event-panel.scope-region,
+.event-chip.scope-region {
+  background: rgba(30, 132, 73, 0.15);
+}
+
+.event-panel.scope-local,
+.event-chip.scope-local {
+  background: rgba(183, 149, 11, 0.15);
+}
+
 .scope-dot {
   display: inline-block;
   width: 0.8em;
@@ -965,4 +986,106 @@ code {
   padding: 0.5rem 0.6rem;
   color: var(--color-muted);
   font-size: 0.9rem;
+}
+
+/* --- version 0.3: corda badges, person labels, event guests --- */
+
+.corda-badge {
+  display: inline-flex;
+  align-items: stretch;
+  height: 0.95rem;
+  width: 1.7rem;
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: -0.15em;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: none;
+}
+
+.corda-badge-stripe {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.corda-badge-label {
+  display: none;
+}
+
+.person-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.person-title {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.owner-chip .person-label {
+  gap: 0.25rem;
+}
+
+.owner-chip .person-title {
+  font-weight: 500;
+}
+
+.event-guests {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.8rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius, 8px);
+  background: var(--color-bg);
+}
+
+.event-guests-label {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.event-popup .event-guests {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.person-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.person-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius, 8px);
+  width: 100%;
+}
+
+.person-edit .inline-form {
+  flex-wrap: wrap;
+}
+
+.person-edit-lists {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.person-edit-lists > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  min-width: 16rem;
+  flex: 1 1 16rem;
 }

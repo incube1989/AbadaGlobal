@@ -40,6 +40,7 @@ export default function EventForm() {
   const [type, setType] = useState<EventType>('competition')
   const [scope, setScope] = useState<EventScope>('local')
   const [owners, setOwners] = useState<EventOwner[]>([])
+  const [guests, setGuests] = useState<EventOwner[]>([])
 
   const [countries, setCountries] = useState<Country[]>([])
   const [regions, setRegions] = useState<Region[]>([])
@@ -78,6 +79,7 @@ export default function EventForm() {
         setType(event.type)
         setScope(event.scope)
         setOwners(event.owners ?? [])
+        setGuests((event.guests ?? []).map((g) => ({ personId: g.id })))
         setLoading(false)
       })
       .catch((err) => {
@@ -164,6 +166,7 @@ export default function EventForm() {
         scope,
         status,
         owners,
+        guests: guests.map((g) => g.personId!),
       }
       if (editing && id) {
         await updateEvent(Number(id), input, token)
@@ -263,6 +266,11 @@ export default function EventForm() {
           <legend>{t('eventForm.owners')}</legend>
           <OwnerSelect owners={owners} onOwnersChange={setOwners} />
           <p className="muted">{t('eventForm.ownerHint')}</p>
+        </fieldset>
+        <fieldset className="owners-section">
+          <legend>{t('eventForm.guests')}</legend>
+          <OwnerSelect owners={guests} onOwnersChange={setGuests} />
+          <p className="muted">{t('eventForm.guestHint')}</p>
         </fieldset>
         {error && <p className="form-error">{error}</p>}
         <div className="form-actions">

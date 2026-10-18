@@ -50,23 +50,43 @@ hardcoded event set, event page, navigation bar. Details:
 - User banning (banned users cannot log in) → [[concepts/rights-model|Rights Model]]
 - Plan and tasks: [`Plans/version0.2/`](../../Plans/version0.2/README.md)
 
+## version0.3 (built)
+
+- **Corda belt system** — 16 belts (corda) with two colors each; belt names
+  and titles stay Portuguese and are never translated; the title (Graduado /
+  Instrutor / Professor / Mestre / Grão Mestre) is derived from the belt,
+  never edited or stored; the corda is drawn as a two-color badge before
+  titles/names → [[sources/version0-3]]
+- **Person profile** — public info gains `corda`, auto `title`, `curator`
+  (persons), `head` (regions) → [[concepts/domain-model|Domain Model]]
+- **Event guests** — a guest list of persons shown at the top of the event
+  pop-up and the event page; owners are resolved and also shown at the top of
+  the event page
+- Implemented alongside the merge (backend + OpenAPI + frontend); see
+  [[sources/version0-3]]
+
 ## Current state
 
 - Monorepo scaffolded with working dev setup for frontend and backend
-- Database migration pipeline in place (MVP + version0.2 migrations applied)
-- API contract covers auth, events CRUD, moderation, and admin
+- Database migration pipeline in place (MVP + version0.2 + version0.3
+  migrations applied)
+- API contract covers auth, events CRUD, moderation, admin, belts/person
+  profile, and event guests
 - Design batches merged: vision, MVP, calendar spec, domain model, seed events,
-  version0.2 (rights model, moderation, event CRUD, persons)
+  version0.2 (rights model, moderation, event CRUD, persons), version0.3
+  (corda belts, person profile, event guests & owners)
 
 ## Open questions
 
 - Jogos Mundiais 2027 exact dates/city and venue remain TBD
 - Private-data visibility ([[sources/admin-panel]]) is deferred
-- Person entity extra fields are deferred
+- Person **private info** section is still TBD (public info is built)
+- Mestrando vs. Mestre share the `vermelha-branco` belt — currently collapses
+  to Mestre pending a separate title field
 - Event draft workflow (the draft button exists but is disabled)
 - Notifications and video database remain post-MVP
 
 ## Source count
 
-Twelve raw sources ingested (MVP design batch 2026-10-07 + version0.2 batch
-2026-10-18).
+Fifteen raw sources ingested (MVP design batch 2026-10-07 + version0.2 batch
+2026-10-18 + version0.3 batch 2026-10-18).

@@ -3,6 +3,7 @@ import { fetchOwnerCandidates, resolveOwnerCandidates } from '../api/client'
 import type { EventOwner, OwnerCandidate } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
+import PersonLabel from './PersonLabel'
 
 interface OwnerSelectProps {
   /** Current owner list (persons only). */
@@ -116,7 +117,7 @@ export default function OwnerSelect({ owners, onOwnersChange }: OwnerSelectProps
       <div className="owner-select-box">
         {selected.map((s) => (
           <span key={s.id} className="owner-chip">
-            {s.label}
+            <PersonLabel person={{ corda: s.corda, title: s.title, nickname: s.label }} />
             <button
               type="button"
               className="owner-chip-remove"
@@ -152,7 +153,7 @@ export default function OwnerSelect({ owners, onOwnersChange }: OwnerSelectProps
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => add(o)}
                 >
-                  {o.label}
+                  <PersonLabel person={{ corda: o.corda, title: o.title, nickname: o.label }} />
                 </button>
               </li>
             ))}

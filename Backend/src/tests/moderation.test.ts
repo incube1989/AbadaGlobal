@@ -149,7 +149,7 @@ describe('persons', () => {
   it('lists persons filtered by country', async () => {
     mockDb(defaultRow, (sql) =>
       sql.includes('FROM persons')
-        ? { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false }] }
+        ? { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false, corda: null }] }
         : { rows: [] },
     )
     const res = await request(app)
@@ -157,14 +157,24 @@ describe('persons', () => {
       .set('Authorization', `Bearer ${userToken}`)
     expect(res.status).toBe(200)
     expect(res.body).toEqual([
-      { id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false },
+      {
+        id: 1,
+        nickname: 'Falcão',
+        countryId: 1,
+        userId: null,
+        isDeleted: false,
+        corda: null,
+        title: null,
+        curator: null,
+        head: null,
+      },
     ])
   })
 
   it('links a person to a user via update', async () => {
     mockDb(moderatorRow, (sql) =>
       sql.includes('UPDATE persons')
-        ? { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: 3, isDeleted: false }] }
+        ? { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: 3, isDeleted: false, corda: null }] }
         : { rows: [] },
     )
     const res = await request(app)
@@ -173,6 +183,50 @@ describe('persons', () => {
       .send({ nickname: 'Falcão', countryId: 1, userId: 3 })
     expect(res.status).toBe(200)
     expect(res.body.userId).toBe(3)
+    expect(res.body.corda).toBeNull()
+    expect(res.body.title).toBeNull()
+  })
+
+  it('sets the corda on a person and derives the title', async () => {
+    mockDb(moderatorRow, (sql) =>
+      sql.includes('UPDATE persons')
+        ? { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false, corda: 'azul-verde' }] }
+        : { rows: [] },
+    )
+    const res = await request(app)
+      .put('/api/persons/1')
+      .set('Authorization', `Bearer ${modToken}`)
+      .send({ nickname: 'Falcão', countryId: 1, userId: null, corda: 'azul-verde' })
+    expect(res.status).toBe(200)
+    expect(res.body.corda).toBe('azul-verde')
+    expect(res.body.title).toBe('Graduado')
+  })
+
+  it('stores the curator list of a person', async () => {
+    mockDb(moderatorRow, (sql) => {
+      if (sql.includes('UPDATE persons')) {
+        return { rows: [{ id: 1, nickname: 'Falcão', countryId: 1, userId: null, isDeleted: false, corda: null }] }
+      }
+      if (sql.includes('FROM person_curators')) {
+        return { rows: [{ curatorId: 22 }] }
+      }
+      return { rows: [] }
+    })
+    const res = await request(app)
+      .put('/api/persons/1')
+      .set('Authorization', `Bearer ${modToken}`)
+      .send({ nickname: 'Falcão', countryId: 1, userId: null, curator: [22] })
+    expect(res.status).toBe(200)
+    expect(res.body.curator).toEqual([22])
+  })
+
+  it('rejects an unknown corda with 400', async () => {
+    mockDb(moderatorRow, () => ({ rows: [] }))
+    const res = await request(app)
+      .put('/api/persons/1')
+      .set('Authorization', `Bearer ${modToken}`)
+      .send({ nickname: 'Falcão', countryId: 1, userId: null, corda: 'bogus' })
+    expect(res.status).toBe(400)
   })
 
   it('forbids a default user from creating a person', async () => {

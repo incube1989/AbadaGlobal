@@ -50,6 +50,8 @@ const existingEvent = {
   status: 'published' as const,
   createdBy: 1,
   owners: [{ personId: 5 }],
+  ownerList: [],
+  guests: [{ id: 7, nickname: 'Xuxa', corda: 'roxa' as const, title: 'Instrutor' as const }],
 }
 
 describe('Event form', () => {
@@ -58,9 +60,12 @@ describe('Event form', () => {
     vi.mocked(fetchMe).mockResolvedValue(user)
     vi.mocked(fetchCountries).mockResolvedValue(countries)
     vi.mocked(fetchRegions).mockResolvedValue(regions)
-    vi.mocked(resolveOwnerCandidates).mockResolvedValue([
-      { type: 'person', id: 5, label: 'Falcão' },
-    ])
+    vi.mocked(resolveOwnerCandidates).mockImplementation(async (ids: string) => {
+      if (ids.includes('person:7')) {
+        return [{ type: 'person', id: 7, label: 'Xuxa', corda: 'roxa', title: 'Instrutor' }]
+      }
+      return [{ type: 'person', id: 5, label: 'Falcão', corda: null, title: null }]
+    })
   })
 
   it('renders the create-event form and publishes a new event', async () => {
@@ -104,7 +109,7 @@ describe('Event form', () => {
     expect(draft).toBeDisabled()
   })
 
-  it('renders the owners search picker', async () => {
+  it('renders the owners and guests search pickers', async () => {
     renderWithProviders(<App />, {
       initialEntries: ['/events/new'],
       token: 'tok',
@@ -112,7 +117,9 @@ describe('Event form', () => {
 
     await screen.findByRole('heading', { name: 'Новое событие' })
     expect(screen.getByText('Владельцы')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Поиск людей…')).toBeInTheDocument()
+    expect(screen.getByText('Гости')).toBeInTheDocument()
+    // One person picker for owners, one for guests.
+    expect(screen.getAllByPlaceholderText('Поиск людей…')).toHaveLength(2)
   })
 
   it('prefills the form (including owner chips) when editing an existing event', async () => {
@@ -127,8 +134,11 @@ describe('Event form', () => {
 
     await screen.findByRole('heading', { name: 'Редактирование события' })
     expect(screen.getByLabelText('Название')).toHaveValue('Batizado')
-    // Existing owner resolved to a friendly person chip.
+    // Existing owner and guest resolved to friendly person chips.
     expect(await screen.findByText('Falcão')).toBeInTheDocument()
+    expect(screen.getByText('Xuxa')).toBeInTheDocument()
+    // The guest chip carries its corda badge + title (Portuguese).
+    expect(screen.getByText('Instrutor')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Название'), {
       target: { value: 'Batizado Updated' },

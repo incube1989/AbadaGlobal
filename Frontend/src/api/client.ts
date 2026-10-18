@@ -8,6 +8,7 @@ import type {
   LoginResponse,
   OwnerCandidate,
   Person,
+  PersonInput,
   Region,
   User,
   UserRole,
@@ -202,23 +203,24 @@ export function fetchPersons(
   return request<Person[]>(`/persons${qs ? `?${qs}` : ''}`, { token })
 }
 
-/** POST /api/persons — add a person. */
+/** POST /api/persons — add a person (optionally with a corda). */
 export function createPerson(
   nickname: string,
   countryId: number,
   token: string,
+  corda?: Person['corda'],
 ): Promise<Person> {
   return request<Person>('/persons', {
     method: 'POST',
-    body: { nickname, countryId, userId: null },
+    body: { nickname, countryId, userId: null, corda: corda ?? null },
     token,
   })
 }
 
-/** PUT /api/persons/:id — edit a person and/or link/unlink a user. */
+/** PUT /api/persons/:id — edit a person (corda/curator/head; title is derived). */
 export function updatePerson(
   id: number,
-  input: { nickname: string; countryId: number; userId: number | null },
+  input: PersonInput,
   token: string,
 ): Promise<Person> {
   return request<Person>(`/persons/${id}`, { method: 'PUT', body: input, token })

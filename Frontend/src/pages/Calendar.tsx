@@ -10,6 +10,7 @@ import {
   type EventType,
 } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import PersonLabel from '../components/PersonLabel'
 import { useI18n } from '../i18n/I18nContext'
 import {
   WEEKDAY_KEYS,
@@ -141,7 +142,7 @@ function canEditEvent(event: Event, user: User | null): boolean {
 export default function Calendar() {
   const { token, user } = useAuth()
   const { t, lang } = useI18n()
-  const [view, setView] = useState<DateView>('months')
+  const [view, setView] = useState<DateView>('days')
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -277,7 +278,7 @@ export default function Calendar() {
 
       <div className="calendar-toolbar">
         <div className="view-toggle" role="group" aria-label="View">
-          {(['months', 'weeks', 'days'] as const).map((v) => (
+          {(['days', 'weeks', 'months'] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -363,6 +364,14 @@ export default function Calendar() {
           <div className="event-popup" onClick={(e) => e.stopPropagation()}>
             <span className={`scope-dot ${SCOPE_CLASS[selected.scope]}`} />
             <h3>{selected.name}</h3>
+            {selected.guests && selected.guests.length > 0 && (
+              <div className="event-guests">
+                <span className="event-guests-label">{t('event.guests')}:</span>
+                {selected.guests.map((g) => (
+                  <PersonLabel key={g.id} person={g} />
+                ))}
+              </div>
+            )}
             <p>
               {t('event.startDate')}: {shortDate(selected.startDate, lang)}
             </p>

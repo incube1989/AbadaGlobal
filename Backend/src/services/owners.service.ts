@@ -1,10 +1,23 @@
 import { pool } from '../db/pool.js'
+import type { Corda, CordaTitle } from '../models/person.js'
+import { CORDA_TITLES } from '../models/person.js'
 
-/** One result of the owner picker: a person (owners are persons only). */
+/** One result of the owner/guest picker: a person (owners are persons only). */
 export interface OwnerCandidate {
   type: 'person'
   id: number
   label: string
+  /** Capoeira belt of the person (for the corda badge in pickers). */
+  corda: Corda | null
+  /** Title derived from the corda. */
+  title: CordaTitle | null
+}
+
+/** Row of the persons SELECT shared by search/resolve. */
+interface PersonCandidateRow {
+  id: number
+  nickname: string
+  corda: Corda | null
 }
 
 const LIMIT = 50
@@ -23,14 +36,20 @@ export async function searchOwners(search: string): Promise<OwnerCandidate[]> {
     params.push(`%${term}%`)
     where += ` AND nickname ILIKE $${params.length}`
   }
-  const { rows } = await pool.query<{ id: number; nickname: string }>(
-    `SELECT id, nickname FROM persons
+  const { rows } = await pool.query<PersonCandidateRow>(
+    `SELECT id, nickname, corda FROM persons
       WHERE ${where}
       ORDER BY nickname
       LIMIT ${LIMIT}`,
     params,
   )
-  return rows.map((p) => ({ type: 'person' as const, id: p.id, label: p.nickname }))
+  return rows.map((p) => ({
+    type: 'person' as const,
+    id: p.id,
+    label: p.nickname,
+    corda: p.corda ?? null,
+    title: p.corda ? (CORDA_TITLES[p.corda] ?? null) : null,
+  }))
 }
 
 /**
@@ -53,9 +72,15 @@ export async function resolveOwners(ids: string): Promise<OwnerCandidate[]> {
   if (personIds.length === 0) {
     return []
   }
-  const { rows } = await pool.query<{ id: number; nickname: string }>(
-    `SELECT id, nickname FROM persons WHERE id = ANY($1) ORDER BY nickname`,
+  const { rows } = await pool.query<PersonCandidateRow>(
+    `SELECT id, nickname, corda FROM persons WHERE id = ANY($1) ORDER BY nickname`,
     [personIds],
   )
-  return rows.map((p) => ({ type: 'person' as const, id: p.id, label: p.nickname }))
+  return rows.map((p) => ({
+    type: 'person' as const,
+    id: p.id,
+    label: p.nickname,
+    corda: p.corda ?? null,
+    title: p.corda ? (CORDA_TITLES[p.corda] ?? null) : null,
+  }))
 }

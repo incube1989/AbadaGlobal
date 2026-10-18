@@ -71,3 +71,26 @@ grep "^## \[" log.md | tail -5
   [`Plans/version0.2/`](../../Plans/version0.2/README.md)); 44 backend +
   29 frontend tests passing; live at http://localhost:5173.
 - Archived the seven merged files to `Design/Archive/`.
+
+## [2026-10-18] merge | Design increment batch — version0.3 (corda belts, person profile, event guests)
+
+- Reviewed the three version0.3 documents in `Design/Increment/`
+  (`beltsandcolors.md`, `person.md`, `event.md`); raised open questions with
+  the team and resolved them (see decisions below).
+- Created source page [[sources/version0-3]]; updated
+  [[concepts/domain-model]] (Person corda/title/curator/head, Event
+  guests + resolved ownerList) and [[overview]]; refreshed [[index]].
+- Decisions recorded: corda values and titles stay Portuguese and are never
+  translated; title is derived from the corda, never editable/stored;
+  `vermelha-branco` (listed for both Mestrando and Mestre) collapses to
+  Mestre pending a separate title field; the corda "emoji" is drawn as a
+  two-color stripe badge; event guests and owners are resolved (name + corda
+  + title) for display at the top of the pop-up and event page.
+- Implemented in code alongside the merge: migration
+  [`007_version03_domain.sql`](../../Backend/db/migrations/007_version03_domain.sql)
+  (`persons.corda`, `person_curators`, `person_heads`, `event_guests`),
+  backend + OpenAPI + frontend (moderation corda/curator/head editing, event
+  guests picker, guests in popup/page, owners at the top of the event page);
+  54 backend + 35 frontend tests passing, both typechecks clean; live smoke
+  tests confirmed corda → title derivation and resolved owners/guests.
+- Archived the three merged files to `Design/Archive/`.

@@ -96,6 +96,19 @@ function parseEventInput(body: unknown): EventInput | null {
       }
     }
   }
+  // Guests: a list of person ids (optional).
+  let guests: number[] | undefined
+  if (b.guests !== undefined) {
+    if (!Array.isArray(b.guests)) {
+      return null
+    }
+    guests = []
+    for (const g of b.guests) {
+      const gid = Number(g)
+      if (!Number.isInteger(gid) || gid < 1) return null
+      guests.push(gid)
+    }
+  }
   return {
     name: name.trim(),
     startDate,
@@ -106,6 +119,7 @@ function parseEventInput(body: unknown): EventInput | null {
     scope: scope as EventScope,
     status,
     owners,
+    guests,
   }
 }
 

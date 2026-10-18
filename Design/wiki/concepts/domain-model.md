@@ -1,15 +1,16 @@
 ---
 title: Domain Model
-tags: [concept, domain, users, persons, events, countries, regions]
+tags: [concept, domain, users, persons, events, countries, regions, corda, guests]
 created: 2026-10-07
 updated: 2026-10-18
-sources: 4
+sources: 7
 ---
 
 # Domain Model
 
 Entities for AbadaGlobal, from [[sources/main]], [[sources/calendar]],
-[[sources/users-and-persons]], and [[concepts/rights-model|Rights Model]].
+[[sources/users-and-persons]], [[concepts/rights-model|Rights Model]],
+and [[sources/version0-3]].
 
 ## User
 
@@ -30,9 +31,16 @@ Banned users cannot log in. Rights and ban rules:
 - country (FK → country)
 - optional unique link to a user (a user may be linked to exactly one person)
 - isDeleted (soft delete)
+- **corda** (version0.3) — capoeira belt enum (Portuguese, never translated),
+  `null` when not set → [[sources/version0-3]]
+- **title** (version0.3) — derived from the corda automatically; **never
+  editable and never stored**
+- **curator** (version0.3) — list of curator persons, `null` by default
+- **head** (version0.3) — list of regions headed by the person, `null` by default
 
 A person can exist without a user and a user without a person
-([[sources/users-and-persons]]). Minimal for now — further fields later.
+([[sources/users-and-persons]]). Public info carries the corda system;
+private info is still TBD.
 
 ## Country / Region
 
@@ -53,8 +61,13 @@ Managed on the [[entities/frontend|moderation page]]
 - createdBy (user)
 - owners: a list of **persons** (owners are persons only; the creator keeps
   edit rights via created_by)
+- **guests** (version0.3) — a list of persons shown **at the top of the event
+  information** (both the calendar pop-up and the event page)
+- Resolved **ownerList** (version0.3) — owners with name + corda + title,
+  displayed at the top of the event page
 
-MVP seed events come from [[sources/hardcoded-events]].
+The belt system and titles come from [[sources/version0-3]]; MVP seed events
+come from [[sources/hardcoded-events]].
 
 ## Moderation / admin
 

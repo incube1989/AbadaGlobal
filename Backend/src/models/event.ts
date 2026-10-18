@@ -1,3 +1,5 @@
+import type { Corda, CordaTitle, EventGuest } from './person.js'
+
 export type EventType =
   | 'competition'
   | 'festival'
@@ -25,6 +27,19 @@ export interface EventOwner {
   personId?: number
 }
 
+/**
+ * Resolved owner entry for display (event page top). Owners are persons in
+ * practice, but users are supported by the schema — nickname is the user name
+ * or the person nickname, and corda/title only apply to person owners.
+ */
+export interface EventOwnerInfo {
+  userId?: number
+  personId?: number
+  nickname: string
+  corda: Corda | null
+  title: CordaTitle | null
+}
+
 /** Event as returned by the API (dates are YYYY-MM-DD strings). */
 export interface Event {
   id: number
@@ -38,6 +53,10 @@ export interface Event {
   status: EventStatus
   createdBy: number
   owners: EventOwner[]
+  /** Resolved owners, shown at the top of the event page. */
+  ownerList: EventOwnerInfo[]
+  /** Guest persons, resolved with nickname/corda/title for display. */
+  guests: EventGuest[]
 }
 
 /** Payload for creating or updating an event. */
@@ -51,4 +70,6 @@ export interface EventInput {
   scope: EventScope
   status?: EventStatus
   owners?: EventOwner[]
+  /** Guest person ids (undefined = leave unchanged in update mode). */
+  guests?: number[]
 }
