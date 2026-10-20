@@ -5,6 +5,10 @@
 #
 #   bash deploy.sh
 #
+# NOTE: the VM's public IP is EPHEMERAL — it changes after every restart.
+# The preflight below checks reachability; if it fails, ask the Yandex Cloud
+# bot for the CURRENT public IP of the VM, set VM_IP in connections.env and
+# re-run (interactive mode can update connections.env for you).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -14,6 +18,23 @@ source ./connections.env
 VM="${VM_USER}@${VM_IP}"
 REMOTE_DIR=/srv/abadaglobal
 SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=accept-new"
+
+echo "==> 0/5 check VM reachability (${VM})"
+if ! ssh ${SSH_OPTS} -o ConnectTimeout=10 -o BatchMode=yes "${VM}" "true" >/dev/null 2>&1; then
+  echo "!! Cannot reach ${VM}."
+  echo "!! The VM was likely restarted and got a NEW public IP (this is expected)."
+  echo "!! Ask the Yandex Cloud bot for the current public IP of the 'webapp-vm' VM."
+  if [ -t 0 ]; then
+    read -r -p ">> Enter the new VM public IP now (Enter = abort): " NEW_VM_IP
+    if [ -n "${NEW_VM_IP}" ]; then
+      sed -i "s/^VM_IP=.*/VM_IP=${NEW_VM_IP}/" ./connections.env
+      echo "==> updated VM_IP=${NEW_VM_IP} in connections.env, re-running…"
+      exec bash "$0"
+    fi
+  fi
+  echo "!! Fix VM_IP in ./connections.env and re-run:  bash deploy.sh"
+  exit 1
+fi
 
 echo "==> 1/5 bundle source (excluding node_modules, dist, .git)"
 tar -czf src.tar.gz --exclude='node_modules' --exclude='dist' --exclude='.git' -C .. Backend Frontend
